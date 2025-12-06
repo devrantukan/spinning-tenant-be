@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Spinning Tenant Backend
 
-## Getting Started
+This is the tenant-specific backend application that integrates with the main backend (`spinning-be`) to serve organization-specific data to the frontend.
 
-First, run the development server:
+## Architecture
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Main Backend** (`spinning-be`): Manages all organizations, admin panel, and all data
+- **Tenant Backend** (`spinning-tenant-be`): Organization-specific API that proxies requests to the main backend, ensuring data isolation
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Organization-specific API endpoints
+- Authentication via Supabase JWT tokens
+- Automatic organization filtering
+- Proxy to main backend for all data operations
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup
 
-## Learn More
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Configure environment variables:**
+   ```bash
+   cp env.template .env
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Update `.env` with:
+   - `MAIN_BACKEND_URL`: URL of the main backend (e.g., `http://localhost:3000`)
+   - `TENANT_ORGANIZATION_ID`: The organization ID this tenant serves
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+## API Endpoints
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+All endpoints require authentication via Bearer token in the Authorization header.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Organization
+- `GET /api/organization` - Get tenant organization details
+
+### Classes
+- `GET /api/classes` - Get all classes for the organization
+
+### Sessions
+- `GET /api/sessions` - Get all sessions for the organization
+- `GET /api/sessions/[id]` - Get a specific session
+
+### Bookings
+- `GET /api/bookings` - Get all bookings for the organization
+- `POST /api/bookings` - Create a new booking
+- `GET /api/bookings/[id]` - Get a specific booking
+- `PATCH /api/bookings/[id]` - Update a booking
+- `DELETE /api/bookings/[id]` - Delete a booking
+
+## Frontend Route
+
+- `/spinning` - Frontend page that displays organization data
+
+## How It Works
+
+1. Frontend authenticates with Supabase and gets a JWT token
+2. Frontend makes requests to tenant backend with the JWT token
+3. Tenant backend validates the token and verifies user belongs to the tenant organization
+4. Tenant backend proxies the request to the main backend with `organizationId` parameter
+5. Main backend returns organization-specific data
+6. Tenant backend returns the data to the frontend
+
+## Security
+
+- All requests require valid Supabase JWT tokens
+- Organization ID is automatically included in all requests to main backend
+- Users can only access data for the tenant's organization
+- Cross-organization access is prevented
