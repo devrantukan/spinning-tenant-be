@@ -40,6 +40,11 @@ async function requestMainBackend(
     requestHeaders["X-API-Key"] = MAIN_BACKEND_API_KEY;
   }
 
+  // Always include organization ID in header as well (for main backend auth.ts)
+  if (TENANT_ORGANIZATION_ID) {
+    requestHeaders["X-Organization-Id"] = TENANT_ORGANIZATION_ID;
+  }
+
   // Always include organization ID in query params for GET requests
   // For POST/PATCH, include it in the body if not already present
   let finalUrl = url;
