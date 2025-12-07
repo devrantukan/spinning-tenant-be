@@ -85,7 +85,6 @@ const translations: Record<Language, Record<string, string>> = {
     'specialtiesPlaceholder': 'Cycling, Yoga, Pilates',
     'specialtiesCommaSeparated': 'Specialties (comma-separated)',
     'instructorBioPlaceholder': 'Instructor bio...',
-    'bookings': 'Bookings',
     
     // Instructor Dashboard
     'welcome': 'Welcome',
@@ -115,7 +114,6 @@ const translations: Record<Language, Record<string, string>> = {
     'latitude': 'Latitude',
     'longitude': 'Longitude',
     'location': 'Location',
-    'role': 'Role',
     'failedToFetchOrganization': 'Failed to fetch organization',
     'failedToUpdateOrganization': 'Failed to update organization',
     
@@ -228,7 +226,6 @@ const translations: Record<Language, Record<string, string>> = {
     'specialtiesPlaceholder': 'Bisiklet, Yoga, Pilates',
     'specialtiesCommaSeparated': 'Uzmanlık Alanları (virgülle ayrılmış)',
     'instructorBioPlaceholder': 'Eğitmen biyografisi...',
-    'bookings': 'Rezervasyonlar',
     
     // Instructor Dashboard
     'welcome': 'Hoş geldiniz',
@@ -258,7 +255,6 @@ const translations: Record<Language, Record<string, string>> = {
     'latitude': 'Enlem',
     'longitude': 'Boylam',
     'location': 'Konum',
-    'role': 'Rol',
     'failedToFetchOrganization': 'Organizasyon bilgisi alınamadı',
     'failedToUpdateOrganization': 'Organizasyon güncellenemedi',
     
