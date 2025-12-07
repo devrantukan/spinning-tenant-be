@@ -168,46 +168,43 @@ export async function getAuthUser(
       console.log("[AUTH] Fetching user role for:", userEmail);
 
       if (userEmail) {
-        // First, try to get user from users endpoint (requires admin, but we check if current user is admin)
+        // Use /api/users/me endpoint which doesn't require admin access
+        // This avoids the circular dependency where we need the role to access /api/users
         console.log(
-          "[AUTH] Attempting to fetch role from /api/users endpoint..."
+          "[AUTH] Attempting to fetch role from /api/users/me endpoint..."
         );
         try {
-          const users = (await mainBackendClient.getUsers(
+          const currentUser = (await mainBackendClient.getCurrentUser(
             token
-          )) as BackendUser[];
-          console.log(
-            "[AUTH] Users endpoint successful, found",
-            users.length,
-            "users"
-          );
-          const user = users.find((u: BackendUser) => u.email === userEmail);
-          if (user?.role) {
+          )) as BackendUser;
+
+          if (currentUser?.role) {
             // Map main backend role to tenant backend role
             // Main backend uses "ADMIN", tenant backend uses "TENANT_ADMIN"
-            const mainBackendRole = user.role;
+            const mainBackendRole = currentUser.role;
             userRole =
               mainBackendRole === "ADMIN" ? "TENANT_ADMIN" : mainBackendRole;
-            console.log("[AUTH] Role found in users endpoint:", {
+            console.log("[AUTH] Role found in /api/users/me endpoint:", {
               mainBackendRole,
               tenantRole: userRole,
               email: userEmail,
+              userId: currentUser.id,
             });
           } else {
             console.log(
-              "[AUTH] User not found in users list, will try members endpoint"
+              "[AUTH] No role found in current user response, will try members endpoint"
             );
           }
-        } catch (usersError: unknown) {
-          // If users endpoint fails (user is not admin or doesn't have access), try members endpoint
-          // This is expected for non-admin users
-          const error = usersError as { status?: number; message?: string };
-          console.log("[AUTH] Users endpoint failed:", {
+        } catch (meError: unknown) {
+          // If /api/users/me fails, log error and try members endpoint as fallback
+          const error = meError as { status?: number; message?: string };
+          console.error("[AUTH] /api/users/me endpoint failed:", {
             status: error.status,
             message: error.message,
             email: userEmail,
           });
 
+          // Try members endpoint as fallback
           if (error.status === 401 || error.status === 403) {
             // User doesn't have admin access, try members endpoint
             console.log(

@@ -235,6 +235,9 @@ export const mainBackendClient = {
     requestMainBackend(`/api/instructors/${id}`, { method: "DELETE", authToken }),
 
   // Users
+  getCurrentUser: (authToken?: string) =>
+    requestMainBackend(`/api/users/me`, { method: "GET", authToken }),
+
   getUsers: (authToken?: string) =>
     requestMainBackend(`/api/users`, { method: "GET", authToken }),
 
