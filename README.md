@@ -17,16 +17,19 @@ This is the tenant-specific backend application that integrates with the main ba
 ## Setup
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Configure environment variables:**
+
    ```bash
    cp env.template .env
    ```
 
    Update `.env` with:
+
    - `MAIN_BACKEND_URL`: URL of the main backend (e.g., `http://localhost:3000`)
    - `TENANT_ORGANIZATION_ID`: The organization ID this tenant serves
    - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
@@ -42,25 +45,30 @@ This is the tenant-specific backend application that integrates with the main ba
 All endpoints require authentication via Bearer token in the Authorization header.
 
 ### Organization
+
 - `GET /api/organization` - Get tenant organization details
 
 ### Classes
+
 - `GET /api/classes` - Get all classes for the organization
 
 ### Sessions
+
 - `GET /api/sessions` - Get all sessions for the organization
 - `GET /api/sessions/[id]` - Get a specific session
 
 ### Bookings
+
 - `GET /api/bookings` - Get all bookings for the organization
 - `POST /api/bookings` - Create a new booking
 - `GET /api/bookings/[id]` - Get a specific booking
 - `PATCH /api/bookings/[id]` - Update a booking
 - `DELETE /api/bookings/[id]` - Delete a booking
 
-## Frontend Route
+## Frontend Routes
 
-- `/spinning` - Frontend page that displays organization data
+- `/admin` - Admin dashboard for managing organization data (classes, sessions, bookings, members, instructors)
+- `/login` - Login page for tenant users
 
 ## How It Works
 

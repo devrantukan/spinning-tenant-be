@@ -3,9 +3,9 @@ import { requireAuth } from '@/lib/auth'
 import { mainBackendClient } from '@/lib/main-backend-client'
 
 /**
- * GET /api/bookings/[id] - Get a specific booking
- * PATCH /api/bookings/[id] - Update a booking
- * DELETE /api/bookings/[id] - Delete a booking
+ * GET /api/instructors/[id] - Get a specific instructor
+ * PATCH /api/instructors/[id] - Update an instructor
+ * DELETE /api/instructors/[id] - Delete an instructor
  */
 export async function GET(
   request: NextRequest,
@@ -16,9 +16,9 @@ export async function GET(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    const booking = await mainBackendClient.getBooking(id, authToken)
+    const instructor = await mainBackendClient.getInstructor(id, authToken)
     
-    return NextResponse.json(booking)
+    return NextResponse.json(instructor)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -26,9 +26,9 @@ export async function GET(
         { status: 401 }
       )
     }
-    console.error('Error fetching booking:', error)
+    console.error('Error fetching instructor:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
@@ -44,9 +44,9 @@ export async function PATCH(
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     const body = await request.json()
     
-    const booking = await mainBackendClient.updateBooking(id, body, authToken)
+    const instructor = await mainBackendClient.updateInstructor(id, body, authToken)
     
-    return NextResponse.json(booking)
+    return NextResponse.json(instructor)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function PATCH(
         { status: 401 }
       )
     }
-    console.error('Error updating booking:', error)
+    console.error('Error updating instructor:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -71,9 +71,9 @@ export async function DELETE(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    await mainBackendClient.deleteBooking(id, authToken)
+    await mainBackendClient.deleteInstructor(id, authToken)
     
-    return NextResponse.json({ message: 'Booking deleted successfully' })
+    return NextResponse.json({ message: 'Instructor deleted successfully' })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -81,15 +81,11 @@ export async function DELETE(
         { status: 401 }
       )
     }
-    console.error('Error deleting booking:', error)
+    console.error('Error deleting instructor:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
 }
-
-
-
-
 
