@@ -17,40 +17,125 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     // Handle Supabase recovery token automatically
-    // Supabase recovery links redirect with hash fragments: #access_token=...&refresh_token=...&type=recovery
+    // Supabase recovery links can come in different formats:
+    // 1. Direct link with hash: #access_token=...&refresh_token=...&type=recovery
+    // 2. Via verify endpoint: /auth/v1/verify?token=...&type=recovery&redirect_to=...
+    //    Which then redirects with hash fragments
     const handleRecovery = async () => {
-      // Check hash fragments first (Supabase redirects with these)
+      console.log('[RESET_PASSWORD] Checking for recovery tokens...', {
+        hash: window.location.hash,
+        search: window.location.search,
+        fullUrl: window.location.href
+      })
+
+      // Check if we already have a session (from previous visit or auth state change)
+      const { data: { session: existingSession } } = await supabase.auth.getSession()
+      if (existingSession) {
+        console.log('[RESET_PASSWORD] Session already exists')
+        return
+      }
+
+      // Check hash fragments first (Supabase redirects with these after verify endpoint)
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
       const type = hashParams.get('type')
       
-      // Also check query params as fallback (some setups might use these)
+      // Check query params
       const queryToken = searchParams.get('token')
       const queryType = searchParams.get('type')
+      const queryAccessToken = searchParams.get('access_token')
+      const queryRefreshToken = searchParams.get('refresh_token')
 
+      console.log('[RESET_PASSWORD] Tokens found:', {
+        hashAccessToken: !!accessToken,
+        hashRefreshToken: !!refreshToken,
+        hashType: type,
+        queryToken: !!queryToken,
+        queryType: queryType,
+        queryAccessToken: !!queryAccessToken,
+        queryRefreshToken: !!queryRefreshToken
+      })
+
+      // Try hash fragments first (most common after Supabase verify redirect)
       if (accessToken && refreshToken && type === 'recovery') {
         try {
+          console.log('[RESET_PASSWORD] Setting session from hash fragments')
           // Set the session from the recovery tokens
-          const { error: sessionError } = await supabase.auth.setSession({
+          const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           })
 
           if (sessionError) {
-            console.error('Session error:', sessionError)
+            console.error('[RESET_PASSWORD] Session error:', sessionError)
             setError('Invalid or expired reset link. Please request a new password reset.')
           } else {
+            console.log('[RESET_PASSWORD] Session set successfully from hash fragments', data)
             // Clear the hash from URL for cleaner UX
             window.history.replaceState(null, '', window.location.pathname)
           }
         } catch (err: any) {
-          console.error('Recovery handling error:', err)
+          console.error('[RESET_PASSWORD] Recovery handling error:', err)
           setError('Failed to process reset link. Please request a new password reset.')
         }
-      } else if (!queryToken && !accessToken) {
-        // No token found at all
-        setError('Invalid or missing reset token. Please request a new password reset.')
+      } 
+      // Try query params (from verify endpoint redirect)
+      else if (queryAccessToken && queryRefreshToken && queryType === 'recovery') {
+        try {
+          console.log('[RESET_PASSWORD] Setting session from query params')
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: queryAccessToken,
+            refresh_token: queryRefreshToken,
+          })
+
+          if (sessionError) {
+            console.error('[RESET_PASSWORD] Session error:', sessionError)
+            setError('Invalid or expired reset link. Please request a new password reset.')
+          } else {
+            console.log('[RESET_PASSWORD] Session set successfully from query params', data)
+            // Clear query params from URL
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+        } catch (err: any) {
+          console.error('[RESET_PASSWORD] Recovery handling error:', err)
+          setError('Failed to process reset link. Please request a new password reset.')
+        }
+      }
+      // If we have a token in query but no hash, the verify endpoint should redirect
+      // Wait a moment for Supabase to process and redirect with hash fragments
+      else if (queryToken || window.location.search.includes('token=')) {
+        console.log('[RESET_PASSWORD] Found token in URL from verify endpoint, waiting for redirect...')
+        console.log('[RESET_PASSWORD] Current URL:', window.location.href)
+        // Wait a bit for Supabase verify endpoint to redirect with hash fragments
+        // If after 2 seconds we still don't have tokens, show error
+        const waitForRedirect = setTimeout(() => {
+          const delayedHash = new URLSearchParams(window.location.hash.substring(1))
+          const delayedAccessToken = delayedHash.get('access_token')
+          if (!delayedAccessToken) {
+            console.error('[RESET_PASSWORD] Verify endpoint did not redirect with tokens after 2 seconds')
+            console.error('[RESET_PASSWORD] This usually means the redirect URL is not whitelisted in Supabase Dashboard')
+            setError('The reset link redirect failed. This may be because the redirect URL is not whitelisted in Supabase Dashboard. Please contact support.')
+          }
+        }, 2000)
+        
+        return () => clearTimeout(waitForRedirect)
+      } 
+      // Listen for auth state changes (Supabase might set session via onAuthStateChange)
+      else {
+        console.log('[RESET_PASSWORD] Setting up auth state listener...')
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('[RESET_PASSWORD] Auth state changed:', event, session ? 'has session' : 'no session')
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+            console.log('[RESET_PASSWORD] Password recovery event detected')
+            // Session should be set automatically by Supabase
+          }
+        })
+
+        // Cleanup subscription on unmount
+        return () => {
+          subscription.unsubscribe()
+        }
       }
     }
 
@@ -80,9 +165,17 @@ function ResetPasswordForm() {
 
       if (!session) {
         // Try to get token from URL and establish session
+        console.log('[RESET_PASSWORD] No session found, trying to extract from URL...')
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
+        const accessToken = hashParams.get('access_token') || searchParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token')
+
+        console.log('[RESET_PASSWORD] Tokens in form submit:', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          fromHash: !!hashParams.get('access_token'),
+          fromQuery: !!searchParams.get('access_token')
+        })
 
         if (accessToken && refreshToken) {
           const { error: sessionError } = await supabase.auth.setSession({
@@ -91,9 +184,12 @@ function ResetPasswordForm() {
           })
 
           if (sessionError) {
+            console.error('[RESET_PASSWORD] Session error in form submit:', sessionError)
             throw new Error('Invalid or expired reset link. Please request a new password reset.')
           }
+          console.log('[RESET_PASSWORD] Session established successfully')
         } else {
+          console.error('[RESET_PASSWORD] No tokens found in URL during form submit')
           throw new Error('Invalid or expired reset link. Please request a new password reset.')
         }
       }

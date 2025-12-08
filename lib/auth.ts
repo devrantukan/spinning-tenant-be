@@ -367,6 +367,31 @@ export async function getAuthUser(
         return null;
       }
 
+      // Handle server errors (502, 503, 504) - backend is down
+      const backendError = err as {
+        status?: number;
+        message?: string;
+        serverError?: boolean;
+        statusText?: string;
+      };
+      if (
+        backendError.status === 502 ||
+        backendError.status === 503 ||
+        backendError.status === 504 ||
+        backendError.serverError
+      ) {
+        console.error("[AUTH] Main backend server is unreachable:", {
+          email: supabaseUser?.email,
+          status: backendError.status,
+          statusText: backendError.statusText,
+          endpoint: "/api/organizations",
+          message:
+            "Main backend server is down or unreachable. Please check server status.",
+        });
+        // Return null to fail authentication gracefully
+        return null;
+      }
+
       // Log other errors (network issues, server errors, etc.)
       console.error("[AUTH] Error verifying user organization:", {
         email: supabaseUser?.email,

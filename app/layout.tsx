@@ -33,7 +33,7 @@ export default function RootLayout({
         <DynamicTitle />
         <ThemeProvider>
           <LanguageProvider>
-            {children}
+        {children}
           </LanguageProvider>
         </ThemeProvider>
       </body>

@@ -72,11 +72,31 @@ async function requestMainBackend(
     const response = await fetch(finalUrl, config);
 
     if (!response.ok) {
-      // Try to get error message from response body
+      // Handle specific status codes with user-friendly messages
       let errorMessage = `HTTP ${response.status}: ${
         response.statusText || "Unknown error"
       }`;
       let errorData: any = {};
+
+      // Handle server errors (502, 503, 504) - backend is down or unreachable
+      if (
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504
+      ) {
+        errorMessage = `Main backend server is unreachable (${response.status} ${response.statusText}). Please check if the main backend is running.`;
+        errorData = {
+          error: errorMessage,
+          status: response.status,
+          serverError: true,
+        };
+        const error = new Error(errorMessage);
+        (error as any).status = response.status;
+        (error as any).statusText = response.statusText;
+        (error as any).errorData = errorData;
+        (error as any).serverError = true;
+        throw error;
+      }
 
       try {
         const contentType = response.headers.get("content-type");
@@ -84,10 +104,21 @@ async function requestMainBackend(
           errorData = await response.json();
           errorMessage = errorData.error || errorData.message || errorMessage;
         } else {
-          // Try to read as text if not JSON
+          // Try to read as text if not JSON, but limit size for HTML errors
           const text = await response.text();
           if (text) {
-            errorMessage = text;
+            // If it's HTML (likely an error page), provide a simpler message
+            if (
+              text.trim().startsWith("<!DOCTYPE") ||
+              text.trim().startsWith("<html")
+            ) {
+              errorMessage = `Main backend returned an error page (${response.status} ${response.statusText}). The server may be down or misconfigured.`;
+              errorData = { error: errorMessage, htmlResponse: true };
+            } else {
+              // Limit text length to avoid huge error messages
+              errorMessage =
+                text.length > 500 ? text.substring(0, 500) + "..." : text;
+            }
           }
         }
       } catch (parseError) {
@@ -232,7 +263,10 @@ export const mainBackendClient = {
     }),
 
   deleteInstructor: (id: string, authToken?: string) =>
-    requestMainBackend(`/api/instructors/${id}`, { method: "DELETE", authToken }),
+    requestMainBackend(`/api/instructors/${id}`, {
+      method: "DELETE",
+      authToken,
+    }),
 
   // Users
   getCurrentUser: (authToken?: string) =>
@@ -269,9 +303,36 @@ export const mainBackendClient = {
       authToken,
     }),
 
-  resetUserPassword: (userId: string, authToken?: string) =>
-    requestMainBackend(`/api/users/${userId}/reset-password`, {
+  resetUserPassword: (userId: string, authToken?: string) => {
+    // Get tenant URL from environment variable
+    const tenantUrl =
+      process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
+
+    if (!tenantUrl) {
+      console.warn(
+        "[TENANT_BACKEND] TENANT_URL not configured! Password reset will use default URL from main backend."
+      );
+    } else {
+      console.log("[TENANT_BACKEND] Sending TENANT_URL for password reset:", {
+        tenantUrl,
+        userId,
+        source: process.env.TENANT_URL ? "TENANT_URL" : "NEXT_PUBLIC_SITE_URL",
+      });
+    }
+
+    const headers: Record<string, string> = {};
+    const body: Record<string, string> = {};
+
+    if (tenantUrl) {
+      headers["X-Tenant-URL"] = tenantUrl;
+      body.tenantUrl = tenantUrl;
+    }
+
+    return requestMainBackend(`/api/users/${userId}/reset-password`, {
       method: "POST",
       authToken,
-    }),
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      body: Object.keys(body).length > 0 ? body : undefined,
+    });
+  },
 };

@@ -7,7 +7,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true, // Automatically detect sessions from URL hash fragments
+  },
+})
 
 // Server-side Supabase client with service role key (for admin operations)
 export const createServerClient = () => {
@@ -31,6 +37,7 @@ export const createServerClient = () => {
     }
   })
 }
+
 
 
 

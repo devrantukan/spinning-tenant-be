@@ -73,14 +73,14 @@ export default function Home() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
         <div className="w-full flex justify-between items-start mb-8">
-          <Image
-            className="dark:invert"
-            src="/next.svg"
-            alt="Next.js logo"
-            width={100}
-            height={20}
-            priority
-          />
+        <Image
+          className="dark:invert"
+          src="/next.svg"
+          alt="Next.js logo"
+          width={100}
+          height={20}
+          priority
+        />
           {isLoggedIn && (
             <div className="flex gap-4">
               <a
@@ -112,14 +112,14 @@ export default function Home() {
         
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           {!isLoggedIn ? (
-            <a
+          <a
               className="flex h-12 w-full items-center justify-center rounded-full bg-blue-600 px-5 text-white transition-colors hover:bg-blue-700 md:w-[158px]"
               href="/login"
-            >
+          >
               Login
             </a>
           ) : (
-            <a
+          <a
               className="flex h-12 w-full items-center justify-center rounded-full bg-blue-600 px-5 text-white transition-colors hover:bg-blue-700 md:w-[158px]"
               href={userRole === 'INSTRUCTOR' ? '/instructor' : '/admin'}
             >
