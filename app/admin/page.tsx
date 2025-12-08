@@ -21,6 +21,13 @@ interface OrganizationData {
   tiktok?: string;
   latitude?: number;
   longitude?: number;
+  // SMTP Configuration
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPassword?: string | null;
+  smtpFromEmail?: string | null;
+  smtpFromName?: string | null;
   _count?: {
     users: number;
     members: number;
@@ -161,7 +168,9 @@ export default function OrganizationPage() {
 
   const handleEditOrganization = () => {
     if (data) {
-      setEditForm(data);
+      // Don't include masked password in edit form
+      const { smtpPassword: _, ...formData } = data;
+      setEditForm(formData);
       setIsEditing(true);
     }
   };
@@ -173,13 +182,20 @@ export default function OrganizationPage() {
     setError(null);
 
     try {
+      // Prepare update data - only include password if it was changed (not empty)
+      const updateData = { ...editForm };
+      // If password is empty, don't send it (to keep current password)
+      if (!updateData.smtpPassword || updateData.smtpPassword === "") {
+        delete updateData.smtpPassword;
+      }
+
       const response = await fetch("/api/organization", {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(updateData),
       });
 
       if (!response.ok) {
@@ -819,6 +835,180 @@ export default function OrganizationPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* SMTP Configuration Display */}
+              {(data.smtpHost || data.smtpUser) && (
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "1rem",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("smtpConfiguration")}
+                  </h3>
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                    }}
+                  >
+                    <tbody>
+                      {data.smtpHost && (
+                        <tr>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              fontWeight: "600",
+                              color: colors.text,
+                              width: "200px",
+                            }}
+                          >
+                            {t("smtpHost")}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              color: colors.text,
+                            }}
+                          >
+                            {data.smtpHost}
+                          </td>
+                        </tr>
+                      )}
+                      {data.smtpPort && (
+                        <tr>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              fontWeight: "600",
+                              color: colors.text,
+                            }}
+                          >
+                            {t("smtpPort")}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              color: colors.text,
+                            }}
+                          >
+                            {data.smtpPort}
+                          </td>
+                        </tr>
+                      )}
+                      {data.smtpUser && (
+                        <tr>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              fontWeight: "600",
+                              color: colors.text,
+                            }}
+                          >
+                            {t("smtpUser")}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              color: colors.text,
+                            }}
+                          >
+                            {data.smtpUser}
+                          </td>
+                        </tr>
+                      )}
+                      {data.smtpPassword && (
+                        <tr>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              fontWeight: "600",
+                              color: colors.text,
+                            }}
+                          >
+                            {t("smtpPassword")}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              color: colors.text,
+                            }}
+                          >
+                            {data.smtpPassword === "••••••••"
+                              ? data.smtpPassword
+                              : "••••••••"}
+                          </td>
+                        </tr>
+                      )}
+                      {data.smtpFromEmail && (
+                        <tr>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              fontWeight: "600",
+                              color: colors.text,
+                            }}
+                          >
+                            {t("smtpFromEmail")}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              color: colors.text,
+                            }}
+                          >
+                            {data.smtpFromEmail}
+                          </td>
+                        </tr>
+                      )}
+                      {data.smtpFromName && (
+                        <tr>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              fontWeight: "600",
+                              color: colors.text,
+                            }}
+                          >
+                            {t("smtpFromName")}
+                          </td>
+                          <td
+                            style={{
+                              padding: "0.75rem",
+                              borderBottom: `1px solid ${colors.border}`,
+                              color: colors.text,
+                            }}
+                          >
+                            {data.smtpFromName}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               {data._count && (
                 <div style={{ marginTop: "1.5rem" }}>
@@ -1533,6 +1723,250 @@ export default function OrganizationPage() {
                           })
                         }
                         placeholder="e.g., 28.9784"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "1rem",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("smtpConfiguration")}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: "0.875rem",
+                      color: colors.textSecondary,
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    {t("smtpConfigurationDescription")}
+                  </p>
+                  <div style={{ display: "grid", gap: "1rem" }}>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("smtpHost")}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.smtpHost || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            smtpHost: e.target.value || undefined,
+                          })
+                        }
+                        placeholder="smtp.zoho.com"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("smtpPort")}
+                      </label>
+                      <input
+                        type="number"
+                        value={editForm.smtpPort || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            smtpPort: e.target.value
+                              ? parseInt(e.target.value, 10)
+                              : undefined,
+                          })
+                        }
+                        placeholder="587"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("smtpUser")}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.smtpUser || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            smtpUser: e.target.value || undefined,
+                          })
+                        }
+                        placeholder="noreply@yourdomain.com"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("smtpPassword")}
+                      </label>
+                      <input
+                        type="password"
+                        value={editForm.smtpPassword || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            smtpPassword: e.target.value || undefined,
+                          })
+                        }
+                        placeholder={
+                          data?.smtpPassword === "••••••••"
+                            ? t("leaveBlankToKeepCurrent")
+                            : ""
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                      {data?.smtpPassword === "••••••••" && (
+                        <p
+                          style={{
+                            fontSize: "0.75rem",
+                            color: colors.textSecondary,
+                            marginTop: "0.25rem",
+                          }}
+                        >
+                          {t("leaveBlankToKeepCurrent")}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("smtpFromEmail")}
+                      </label>
+                      <input
+                        type="email"
+                        value={editForm.smtpFromEmail || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            smtpFromEmail: e.target.value || undefined,
+                          })
+                        }
+                        placeholder="noreply@yourdomain.com"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("smtpFromName")}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.smtpFromName || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            smtpFromName: e.target.value || undefined,
+                          })
+                        }
+                        placeholder="Spin8 Studio"
                         style={{
                           width: "100%",
                           padding: "0.5rem",

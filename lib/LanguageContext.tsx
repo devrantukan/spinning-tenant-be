@@ -116,6 +116,16 @@ const translations: Record<Language, Record<string, string>> = {
     'location': 'Location',
     'failedToFetchOrganization': 'Failed to fetch organization',
     'failedToUpdateOrganization': 'Failed to update organization',
+    // SMTP Configuration
+    'smtpConfiguration': 'SMTP Configuration',
+    'smtpConfigurationDescription': 'Configure SMTP settings for sending password reset emails. If not configured, environment variables will be used as fallback.',
+    'smtpHost': 'SMTP Host',
+    'smtpPort': 'SMTP Port',
+    'smtpUser': 'SMTP User',
+    'smtpPassword': 'SMTP Password',
+    'smtpFromEmail': 'From Email',
+    'smtpFromName': 'From Name',
+    'leaveBlankToKeepCurrent': 'Leave blank to keep current password',
     
     // Data List
     'found': 'Found',
@@ -255,6 +265,16 @@ const translations: Record<Language, Record<string, string>> = {
     'latitude': 'Enlem',
     'longitude': 'Boylam',
     'location': 'Konum',
+    // SMTP Configuration
+    'smtpConfiguration': 'SMTP Yapılandırması',
+    'smtpConfigurationDescription': 'Şifre sıfırlama e-postalarını göndermek için SMTP ayarlarını yapılandırın. Yapılandırılmazsa, ortam değişkenleri yedek olarak kullanılacaktır.',
+    'smtpHost': 'SMTP Sunucusu',
+    'smtpPort': 'SMTP Port',
+    'smtpUser': 'SMTP Kullanıcı',
+    'smtpPassword': 'SMTP Şifre',
+    'smtpFromEmail': 'Gönderen E-posta',
+    'smtpFromName': 'Gönderen İsim',
+    'leaveBlankToKeepCurrent': 'Mevcut şifreyi korumak için boş bırakın',
     'failedToFetchOrganization': 'Organizasyon bilgisi alınamadı',
     'failedToUpdateOrganization': 'Organizasyon güncellenemedi',
     
