@@ -126,6 +126,16 @@ const translations: Record<Language, Record<string, string>> = {
     'smtpFromEmail': 'From Email',
     'smtpFromName': 'From Name',
     'leaveBlankToKeepCurrent': 'Leave blank to keep current password',
+    // Invitation
+    'acceptInvitation': 'Accept Invitation',
+    'setPasswordDescription': 'Please set a password to complete your account setup.',
+    'waitingForInvitation': 'Processing invitation link...',
+    'passwordSetSuccess': 'Password Set Successfully!',
+    'redirectingToLogin': 'Redirecting to login...',
+    'setting': 'Setting...',
+    'setPassword': 'Set Password',
+    'newPassword': 'New Password',
+    'confirmPassword': 'Confirm Password',
     
     // Data List
     'found': 'Found',
@@ -275,6 +285,16 @@ const translations: Record<Language, Record<string, string>> = {
     'smtpFromEmail': 'Gönderen E-posta',
     'smtpFromName': 'Gönderen İsim',
     'leaveBlankToKeepCurrent': 'Mevcut şifreyi korumak için boş bırakın',
+    // Invitation
+    'acceptInvitation': 'Daveti Kabul Et',
+    'setPasswordDescription': 'Hesap kurulumunuzu tamamlamak için lütfen bir şifre belirleyin.',
+    'waitingForInvitation': 'Davet bağlantısı işleniyor...',
+    'passwordSetSuccess': 'Şifre Başarıyla Ayarlandı!',
+    'redirectingToLogin': 'Giriş sayfasına yönlendiriliyor...',
+    'setting': 'Ayarlandı...',
+    'setPassword': 'Şifre Belirle',
+    'newPassword': 'Yeni Şifre',
+    'confirmPassword': 'Şifreyi Onayla',
     'failedToFetchOrganization': 'Organizasyon bilgisi alınamadı',
     'failedToUpdateOrganization': 'Organizasyon güncellenemedi',
     

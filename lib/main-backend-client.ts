@@ -283,12 +283,30 @@ export const mainBackendClient = {
       organizationId: string;
     },
     authToken?: string
-  ) =>
-    requestMainBackend(`/api/users`, {
+  ) => {
+    // Get tenant URL from environment variable
+    const tenantUrl =
+      process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
+
+    const headers: Record<string, string> = {};
+    const body = { ...data };
+
+    if (tenantUrl) {
+      headers["X-Tenant-URL"] = tenantUrl;
+      (body as any).tenantUrl = tenantUrl;
+      console.log("[TENANT_BACKEND] Sending TENANT_URL for user invitation:", {
+        tenantUrl,
+        email: data.email,
+      });
+    }
+
+    return requestMainBackend(`/api/users`, {
       method: "POST",
-      body: data,
+      body,
       authToken,
-    }),
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+    });
+  },
 
   // User Invitations
   getUserInvitationStatus: (userId: string, authToken?: string) =>
@@ -297,11 +315,33 @@ export const mainBackendClient = {
       authToken,
     }),
 
-  resendUserInvitation: (userId: string, authToken?: string) =>
-    requestMainBackend(`/api/users/${userId}/resend-invitation`, {
+  resendUserInvitation: (userId: string, authToken?: string) => {
+    // Get tenant URL from environment variable
+    const tenantUrl =
+      process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
+
+    const headers: Record<string, string> = {};
+    const body: Record<string, string> = {};
+
+    if (tenantUrl) {
+      headers["X-Tenant-URL"] = tenantUrl;
+      body.tenantUrl = tenantUrl;
+      console.log(
+        "[TENANT_BACKEND] Sending TENANT_URL for resend invitation:",
+        {
+          tenantUrl,
+          userId,
+        }
+      );
+    }
+
+    return requestMainBackend(`/api/users/${userId}/resend-invitation`, {
       method: "POST",
       authToken,
-    }),
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      body: Object.keys(body).length > 0 ? body : undefined,
+    });
+  },
 
   resetUserPassword: (userId: string, authToken?: string) => {
     // Get tenant URL from environment variable
