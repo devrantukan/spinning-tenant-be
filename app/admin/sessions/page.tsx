@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '@/lib/useTheme'
 import { useLanguage } from '@/lib/LanguageContext'
+import Spinner from '@/components/Spinner'
 
 interface Session {
   id: string
@@ -283,7 +284,7 @@ export default function SessionsPage() {
   if (!token) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: colors.text }}>
-        <p>{t('loading')}</p>
+        <Spinner text={t('loading')} />
       </div>
     )
   }
@@ -310,17 +311,26 @@ export default function SessionsPage() {
           <button
             onClick={refreshData}
             disabled={loading}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#1976d2',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1
-            }}
-          >
-            {loading ? t('loading') : t('refresh')}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {loading ? (
+                <>
+                  <Spinner size={16} color="#ffffff" />
+                  <span>{t('loading')}</span>
+                </>
+              ) : t('refresh')}
           </button>
           <button
             onClick={() => {
@@ -518,9 +528,14 @@ export default function SessionsPage() {
                 fontSize: '1rem',
                 fontWeight: 'bold',
                 cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.6 : 1
+                opacity: saving ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
               }}
             >
+              {saving && <Spinner size={16} color="#ffffff" />}
               {saving ? t('saving') : (editingId ? t('save') : t('createSession'))}
             </button>
           </form>

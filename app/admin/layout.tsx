@@ -173,19 +173,6 @@ export default function AdminLayout({
             )}
             <span>{t(theme === 'light' ? 'dark' : 'light')}</span>
           </button>
-          <a
-            href="/"
-            style={{
-              padding: '0.5rem 1rem',
-              color: colors.activeText,
-              textDecoration: 'none',
-              borderRadius: '4px',
-              border: `1px solid ${colors.activeText}`,
-              transition: 'all 0.3s'
-            }}
-          >
-            {t('home')}
-          </a>
           <button
             onClick={handleLogout}
             style={{

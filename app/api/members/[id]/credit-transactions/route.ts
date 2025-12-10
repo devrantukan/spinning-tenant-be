@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { mainBackendClient } from '@/lib/main-backend-client'
 
-// GET /api/users/[id]/invitation-status - Get invitation status for a user
+/**
+ * GET /api/members/[id]/credit-transactions - Get credit transaction history for a member
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -11,10 +13,10 @@ export async function GET(
     await requireAuth(request)
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    const status = await mainBackendClient.getUserInvitationStatus(id, authToken)
-
-    return NextResponse.json(status)
+    
+    const transactions = await mainBackendClient.getMemberCreditTransactions(id, authToken)
+    
+    return NextResponse.json(transactions)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -22,12 +24,17 @@ export async function GET(
         { status: 401 }
       )
     }
-    console.error('Error fetching invitation status:', error)
+    if (error.status === 404) {
+      return NextResponse.json(
+        { error: 'Member not found' },
+        { status: 404 }
+      )
+    }
+    console.error('Error fetching credit transactions:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: error.status || 500 }
+      { error: 'Internal server error' },
+      { status: 500 }
     )
   }
 }
-
 

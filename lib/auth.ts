@@ -96,6 +96,7 @@ export async function getAuthUser(
           status?: number;
           statusText?: string;
           errorData?: unknown;
+          connectionError?: boolean;
         };
         console.error(
           "[AUTH] Failed to fetch organization from main backend:",
@@ -104,8 +105,22 @@ export async function getAuthUser(
             status: error.status,
             statusText: error.statusText,
             errorData: error.errorData,
+            connectionError: error.connectionError,
           }
         );
+
+        // If connection error, main backend is down - don't treat as unauthorized
+        if (error.connectionError || error.status === 503) {
+          console.error(
+            "[AUTH] Main backend is not reachable. Authentication cannot proceed.",
+            {
+              mainBackendUrl: process.env.MAIN_BACKEND_URL || "http://localhost:3000",
+              error: error.message,
+            }
+          );
+          // Re-throw connection errors so they can be handled appropriately
+          throw error;
+        }
 
         // If unauthorized, the user doesn't belong to this organization
         if (error.status === 401 || error.message?.includes("Unauthorized")) {

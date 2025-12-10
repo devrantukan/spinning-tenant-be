@@ -1,133 +1,377 @@
 'use client'
 
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/lib/LanguageContext";
+import Spinner from "@/components/Spinner";
 
 export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const router = useRouter();
+  const { t } = useLanguage();
 
   useEffect(() => {
-    // Check if user is logged in by checking localStorage
-    const token = localStorage.getItem('supabase_auth_token');
-    setIsLoggedIn(!!token);
-    
-    // If logged in, fetch user role
-    if (token) {
-      fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+    // Check if user is logged in
+    const checkAuth = async () => {
+      try {
+        // Check for session in Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Store session in localStorage for API calls
+          localStorage.setItem('supabase_session', JSON.stringify(session));
+          localStorage.setItem('supabase_auth_token', session.access_token);
+          setIsLoggedIn(true);
+
+          // Fetch user role to determine redirect
+          try {
+            const meResponse = await fetch('/api/auth/me', {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`
+              }
+            });
+            
+            if (meResponse.ok) {
+              const userData = await meResponse.json();
+              setUserRole(userData.role);
+              
+              // Redirect based on role
+              if (userData.role === 'INSTRUCTOR') {
+                router.push('/instructor');
+              } else if (userData.role === 'ADMIN' || userData.role === 'TENANT_ADMIN') {
+                router.push('/admin');
+              } else {
+                // For MEMBER role, redirect to admin as well
+                router.push('/admin');
+              }
+            } else {
+              // If we can't get role, check localStorage token
+              const token = localStorage.getItem('supabase_auth_token');
+              if (token) {
+                router.push('/admin'); // Default redirect
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching user role:', err);
+            // Default redirect if role fetch fails
+            router.push('/admin');
+          }
+        } else {
+          // No session, check localStorage as fallback
+          const token = localStorage.getItem('supabase_auth_token');
+          if (token) {
+            // Try to verify token is still valid
+            try {
+              const meResponse = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
+              if (meResponse.ok) {
+                const userData = await meResponse.json();
+                setUserRole(userData.role);
+                
+                // Redirect based on role
+                if (userData.role === 'INSTRUCTOR') {
+                  router.push('/instructor');
+                } else {
+                  router.push('/admin');
+                }
+                setIsLoggedIn(true);
+              } else {
+                // Token is invalid, clear it
+                localStorage.removeItem('supabase_auth_token');
+                localStorage.removeItem('supabase_session');
+              }
+            } catch (err) {
+              // Clear invalid token
+              localStorage.removeItem('supabase_auth_token');
+              localStorage.removeItem('supabase_session');
+            }
+          }
         }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.role) {
-            setUserRole(data.role);
+      } catch (err) {
+        console.error('Error checking auth:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        localStorage.setItem('supabase_session', JSON.stringify(session));
+        localStorage.setItem('supabase_auth_token', session.access_token);
+        setIsLoggedIn(true);
+        
+        // Fetch role and redirect
+        fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
           }
         })
-        .catch(err => {
-          console.error('Error fetching user role:', err);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
-  }, []);
+          .then(res => res.json())
+          .then(userData => {
+            if (userData.role === 'INSTRUCTOR') {
+              router.push('/instructor');
+            } else {
+              router.push('/admin');
+            }
+          })
+          .catch(() => {
+            router.push('/admin');
+          });
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+        setUserRole(null);
+        localStorage.removeItem('supabase_auth_token');
+        localStorage.removeItem('supabase_session');
+      }
+    });
 
-  const handleLogout = async () => {
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setError('');
+
     try {
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-      
-      // Clear localStorage
-      localStorage.removeItem('supabase_auth_token');
-      localStorage.removeItem('supabase_session');
-      
-      // Redirect to login
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-      // Even if there's an error, clear local storage and redirect
-      localStorage.removeItem('supabase_auth_token');
-      localStorage.removeItem('supabase_session');
-      router.push('/login');
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (data.session) {
+        // Store session in localStorage for API calls
+        localStorage.setItem('supabase_session', JSON.stringify(data.session));
+        localStorage.setItem('supabase_auth_token', data.session.access_token);
+        setIsLoggedIn(true);
+        
+        // Get user's role to determine redirect
+        try {
+          const meResponse = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${data.session.access_token}`
+            }
+          });
+          
+          if (meResponse.ok) {
+            const userData = await meResponse.json();
+            setUserRole(userData.role);
+            
+            // Redirect based on role
+            if (userData.role === 'INSTRUCTOR') {
+              router.push('/instructor');
+            } else if (userData.role === 'ADMIN' || userData.role === 'TENANT_ADMIN') {
+              router.push('/admin');
+            } else {
+              // For MEMBER role, redirect to admin as well
+              router.push('/admin');
+            }
+          } else {
+            // If we can't get role, default to admin
+            router.push('/admin');
+          }
+        } catch (err) {
+          // If there's an error getting role, default to admin
+          console.error('Error fetching user role:', err);
+          router.push('/admin');
+        }
+        router.refresh();
+      }
+    } catch (err: any) {
+      setError(err.message || t('failedToSignIn') || 'Failed to sign in');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p>Loading...</p>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5',
+        fontFamily: 'system-ui'
+      }}>
+        <Spinner text={t('loading')} />
       </div>
     );
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <div className="w-full flex justify-between items-start mb-8">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-          {isLoggedIn && (
-            <div className="flex gap-4">
-              <a
-                href={userRole === 'INSTRUCTOR' ? '/instructor' : '/admin'}
-                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-              >
-                {userRole === 'INSTRUCTOR' ? 'Dashboard' : 'Admin'}
-              </a>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            Spinning Tenant Backend
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            {isLoggedIn 
-              ? "You are logged in. Visit the dashboard to see your organization data."
-              : "Please log in to access the tenant backend."}
+  // If logged in and redirecting, show loading
+  if (isLoggedIn) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5',
+        fontFamily: 'system-ui'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '2rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          textAlign: 'center'
+        }}>
+          <p style={{ color: '#666', margin: 0 }}>
+            {t('redirecting') || 'Redirecting...'}
           </p>
         </div>
-        
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          {!isLoggedIn ? (
-          <a
-              className="flex h-12 w-full items-center justify-center rounded-full bg-blue-600 px-5 text-white transition-colors hover:bg-blue-700 md:w-[158px]"
-              href="/login"
+      </div>
+    );
+  }
+
+  // Show login form for unauthorized users
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f5f5f5',
+      fontFamily: 'system-ui',
+      padding: '1rem'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        padding: '2rem',
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        width: '100%',
+        maxWidth: '400px'
+      }}>
+        <h1 style={{ 
+          marginTop: 0, 
+          marginBottom: '2rem', 
+          textAlign: 'center',
+          color: '#1a1a1a',
+          fontSize: '1.75rem',
+          fontWeight: '600'
+        }}>
+          {t('login') || 'Login'}
+        </h1>
+
+        {error && (
+          <div style={{
+            padding: '1rem',
+            backgroundColor: '#ffebee',
+            color: '#c62828',
+            borderRadius: '4px',
+            marginBottom: '1rem',
+            fontSize: '0.9rem'
+          }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              color: '#333'
+            }}>
+              {t('email') || 'Email'}
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '1rem',
+                boxSizing: 'border-box',
+                color: '#1a1a1a',
+                backgroundColor: '#fff'
+              }}
+              placeholder={t('email') || 'Enter your email'}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              color: '#333'
+            }}>
+              {t('password') || 'Password'}
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '1rem',
+                boxSizing: 'border-box',
+                color: '#1a1a1a',
+                backgroundColor: '#fff'
+              }}
+              placeholder={t('password') || 'Enter your password'}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loginLoading}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              backgroundColor: loginLoading ? '#ccc' : '#1976d2',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              cursor: loginLoading ? 'not-allowed' : 'pointer',
+              opacity: loginLoading ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}
           >
-              Login
-            </a>
-          ) : (
-          <a
-              className="flex h-12 w-full items-center justify-center rounded-full bg-blue-600 px-5 text-white transition-colors hover:bg-blue-700 md:w-[158px]"
-              href={userRole === 'INSTRUCTOR' ? '/instructor' : '/admin'}
-            >
-              {userRole === 'INSTRUCTOR' ? 'Go to Dashboard' : 'Go to Admin'}
-            </a>
-          )}
-        </div>
-      </main>
+            {loginLoading && <Spinner size={16} color="#ffffff" />}
+            {loginLoading ? (t('signingIn') || 'Signing in...') : (t('signIn') || 'Sign In')}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

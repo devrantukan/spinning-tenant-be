@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/lib/useTheme";
+import Spinner from "@/components/Spinner";
 
 interface OrganizationData {
   id: string;
@@ -28,6 +29,8 @@ interface OrganizationData {
   smtpPassword?: string | null;
   smtpFromEmail?: string | null;
   smtpFromName?: string | null;
+  // Language preference
+  language?: string | null;
   _count?: {
     users: number;
     members: number;
@@ -236,7 +239,7 @@ export default function OrganizationPage() {
   if (!token) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: colors.text }}>
-        <p>{t("loading")}</p>
+        <Spinner text={t("loading")} />
       </div>
     );
   }
@@ -275,9 +278,18 @@ export default function OrganizationPage() {
             borderRadius: "4px",
             cursor: loading ? "not-allowed" : "pointer",
             opacity: loading ? 0.6 : 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem"
           }}
         >
-          {loading ? t("loading") : t("refresh")}
+          {loading ? (
+            <>
+              <Spinner size={16} color="#ffffff" />
+              <span>{t("loading")}</span>
+            </>
+          ) : t("refresh")}
         </button>
       </div>
 
@@ -285,7 +297,7 @@ export default function OrganizationPage() {
         <div
           style={{ padding: "2rem", textAlign: "center", color: colors.text }}
         >
-          <p>{t("loading")}</p>
+          <Spinner text={t("loading")} />
         </div>
       )}
 
@@ -1009,6 +1021,68 @@ export default function OrganizationPage() {
                   </table>
                 </div>
               )}
+
+              {/* Language Configuration Display */}
+              <div
+                style={{
+                  backgroundColor: colors.infoBg,
+                  padding: "1.5rem",
+                  borderRadius: "4px",
+                  border: `1px solid ${colors.border}`,
+                  transition: "background-color 0.3s, border-color 0.3s",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                <h3
+                  style={{
+                    marginTop: 0,
+                    marginBottom: "1rem",
+                    color: colors.text,
+                  }}
+                >
+                  {t("emailLanguage")}
+                </h3>
+                <p
+                  style={{
+                    fontSize: "0.875rem",
+                    color: colors.textSecondary,
+                    marginBottom: "1rem",
+                  }}
+                >
+                  {t("languageDescription")}
+                </p>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <tbody>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                          width: "200px",
+                        }}
+                      >
+                        {t("language")}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.language === "tr" ? t("turkish") : t("english")} ({data.language || "en"})
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
               {data._count && (
                 <div style={{ marginTop: "1.5rem" }}>
@@ -1979,6 +2053,50 @@ export default function OrganizationPage() {
                             "background-color 0.3s, border-color 0.3s, color 0.3s",
                         }}
                       />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("emailLanguage")}
+                      </label>
+                      <p
+                        style={{
+                          fontSize: "0.875rem",
+                          color: colors.textSecondary,
+                          marginBottom: "0.5rem",
+                        }}
+                      >
+                        {t("languageDescription")}
+                      </p>
+                      <select
+                        value={editForm.language || "en"}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            language: e.target.value || "en",
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      >
+                        <option value="en">{t("english")}</option>
+                        <option value="tr">{t("turkish")}</option>
+                      </select>
                     </div>
                   </div>
                 </div>

@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '@/lib/useTheme'
 import { useLanguage } from '@/lib/LanguageContext'
+import Spinner from '@/components/Spinner'
+import Modal from '@/components/Modal'
+import { showToast } from '@/components/Toast'
 
 interface User {
   id: string
@@ -31,8 +34,6 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [adding, setAdding] = useState(false)
   const [resendingInvites, setResendingInvites] = useState<Set<string>>(new Set())
   const [resettingPasswords, setResettingPasswords] = useState<Set<string>>(new Set())
   const [invitationStatuses, setInvitationStatuses] = useState<Record<string, any>>({})
@@ -66,11 +67,6 @@ export default function UsersPage() {
   
   const colors = themeColors[theme]
 
-  const [newUser, setNewUser] = useState({
-    email: '',
-    name: '',
-    role: 'INSTRUCTOR' // Tenant admins can only create instructors
-  })
 
   useEffect(() => {
     const authToken = localStorage.getItem('supabase_auth_token')
@@ -278,16 +274,18 @@ export default function UsersPage() {
     }
   }
 
-  const handleResendInvitation = async (userId: string, userEmail: string) => {
-    if (!token) {
-      alert('Not authenticated')
+  const handleResendInvitationClick = (userId: string, userEmail: string) => {
+    setResendInvitationModal({ isOpen: true, userId, email: userEmail })
+  }
+
+  const handleResendInvitation = async () => {
+    if (!token || !resendInvitationModal) {
+      showToast(t('error') + ': Not authenticated', 'error')
       return
     }
 
-    if (!confirm(t('resendInvitationConfirm').replace('{email}', userEmail))) {
-      return
-    }
-
+    const { userId } = resendInvitationModal
+    setResendInvitationModal(null)
     setResendingInvites(prev => new Set(prev).add(userId))
 
     try {
@@ -304,7 +302,7 @@ export default function UsersPage() {
         throw new Error(data.error || 'Failed to resend invitation')
       }
 
-      alert(t('invitationSent'))
+      showToast(t('invitationSent'), 'success')
       
       // Refresh invitation status
       const statusRes = await fetch(`/api/users/${userId}/invitation-status`, {
@@ -321,7 +319,7 @@ export default function UsersPage() {
         }))
       }
     } catch (error: any) {
-      alert(`${t('error')}: ${error.message}`)
+      showToast(`${t('error')}: ${error.message}`, 'error')
     } finally {
       setResendingInvites(prev => {
         const next = new Set(prev)
@@ -331,16 +329,18 @@ export default function UsersPage() {
     }
   }
 
-  const handleResetPassword = async (userId: string, userEmail: string) => {
-    if (!token) {
-      alert('Not authenticated')
+  const handleResetPasswordClick = (userId: string, userEmail: string) => {
+    setResetPasswordModal({ isOpen: true, userId, email: userEmail })
+  }
+
+  const handleResetPassword = async () => {
+    if (!token || !resetPasswordModal) {
+      showToast(t('error') + ': Not authenticated', 'error')
       return
     }
 
-    if (!confirm(t('resetPasswordConfirm').replace('{email}', userEmail))) {
-      return
-    }
-
+    const { userId } = resetPasswordModal
+    setResetPasswordModal(null)
     setResettingPasswords(prev => new Set(prev).add(userId))
 
     try {
@@ -355,30 +355,29 @@ export default function UsersPage() {
 
       if (!res.ok) {
         const errorMsg = data.error || 'Failed to reset password'
-        const details = data.details ? `\n\nDetails: ${data.details}` : ''
-        const suggestion = data.suggestion ? `\n\n${data.suggestion}` : ''
-        alert(`${t('error')}: ${errorMsg}${details}${suggestion}`)
+        const details = data.details ? ` Details: ${data.details}` : ''
+        const suggestion = data.suggestion ? ` ${data.suggestion}` : ''
+        showToast(`${t('error')}: ${errorMsg}${details}${suggestion}`, 'error')
         return
       }
 
-      // Show success message with link if provided (for development/testing)
+      // Show success message
       let message = t('passwordResetSent')
       if (data.link) {
         // Copy link to clipboard
         try {
           await navigator.clipboard.writeText(data.link)
-          message += `\n\n${t('resetLinkCopied')}`
+          message += ` ${t('resetLinkCopied') || '(Link copied to clipboard)'}`
         } catch (err) {
           // Fallback if clipboard API not available
-          message += `\n\n${t('resetLink')}:\n${data.link}`
+          console.log('Password Reset Link:', data.link)
         }
-        message += `\n\n${t('resetLinkNote')}`
       }
       if (data.note) {
-        message += `\n\n${data.note}`
+        message += ` ${data.note}`
       }
       
-      alert(message)
+      showToast(message, 'success')
       
       // Also log to console for easier access
       if (data.link) {
@@ -386,7 +385,7 @@ export default function UsersPage() {
         console.log('Copy this link and share it with the user if email is not received')
       }
     } catch (error: any) {
-      alert(`${t('error')}: ${error.message}`)
+      showToast(`${t('error')}: ${error.message}`, 'error')
     } finally {
       setResettingPasswords(prev => {
         const next = new Set(prev)
@@ -396,42 +395,6 @@ export default function UsersPage() {
     }
   }
 
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!token) return
-
-    setAdding(true)
-    setError(null)
-
-    try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newUser)
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP ${response.status}`)
-      }
-
-      const created = await response.json()
-      setUsers([created, ...users])
-      setNewUser({ email: '', name: '', role: 'INSTRUCTOR' })
-      setShowAddForm(false)
-      
-      // Show success message
-      setError(null)
-      alert('Instructor created successfully! An invitation email has been sent to ' + created.email)
-    } catch (err: any) {
-      setError(err.message || 'Failed to add user')
-    } finally {
-      setAdding(false)
-    }
-  }
 
   const refreshData = () => {
     if (token) {
@@ -447,7 +410,7 @@ export default function UsersPage() {
   if (!token) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <p>Loading...</p>
+        <Spinner text={t('loading')} />
       </div>
     )
   }
@@ -468,23 +431,9 @@ export default function UsersPage() {
         marginBottom: '1rem'
       }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem', color: colors.text }}>{t('users')}</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#4caf50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            {showAddForm ? t('cancel') : t('addUser')}
-          </button>
-          <button
-            onClick={refreshData}
-            disabled={loading}
+        <button
+          onClick={refreshData}
+          disabled={loading}
             style={{
               padding: '0.5rem 1rem',
               backgroundColor: '#1976d2',
@@ -492,12 +441,20 @@ export default function UsersPage() {
               border: 'none',
               borderRadius: '4px',
               cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1
+              opacity: loading ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
             }}
           >
-            {loading ? t('loading') : t('refresh')}
-          </button>
-        </div>
+            {loading ? (
+              <>
+                <Spinner size={16} color="#ffffff" />
+                <span>{t('loading')}</span>
+              </>
+            ) : t('refresh')}
+        </button>
       </div>
 
       {error && (
@@ -512,83 +469,10 @@ export default function UsersPage() {
         </div>
       )}
 
-      {showAddForm && (
-        <div style={{
-          padding: '1.5rem',
-          backgroundColor: '#f9f9f9',
-          borderRadius: '4px',
-          marginBottom: '1.5rem',
-          border: '1px solid #e0e0e0'
-        }}>
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>{t('createNewInstructor')}</h3>
-          <p style={{ marginBottom: '1rem', color: '#666', fontSize: '0.875rem' }}>
-            Create a new instructor account. An invitation email will be sent to the provided email address so they can set up their password and access the system.
-          </p>
-          <form onSubmit={handleAddUser}>
-            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr auto' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem' }}>
-                  {t('email')} *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                  placeholder="instructor@example.com"
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem' }}>
-                  {t('name')}
-                </label>
-                <input
-                  type="text"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                  placeholder="Full Name"
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button
-                  type="submit"
-                  disabled={adding}
-                  style={{
-                    padding: '0.5rem 1.5rem',
-                    backgroundColor: '#4caf50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: adding ? 'not-allowed' : 'pointer',
-                    opacity: adding ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {adding ? t('loading') : t('createAndSendInvite')}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
 
       {loading && (
         <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <p>Loading...</p>
+          <Spinner text={t('loading')} />
         </div>
       )}
 
@@ -715,7 +599,7 @@ export default function UsersPage() {
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           {needsResend && (
                             <button
-                              onClick={() => handleResendInvitation(user.id, user.email)}
+                              onClick={() => handleResendInvitationClick(user.id, user.email)}
                               disabled={isResending}
                               style={{
                                 padding: '0.5rem 1rem',
@@ -735,7 +619,7 @@ export default function UsersPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => handleResetPassword(user.id, user.email)}
+                            onClick={() => handleResetPasswordClick(user.id, user.email)}
                             disabled={resettingPasswords.has(user.id)}
                             style={{
                               padding: '0.5rem 1rem',
@@ -766,6 +650,48 @@ export default function UsersPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetPasswordModal && (
+        <Modal
+          isOpen={resetPasswordModal.isOpen}
+          onClose={() => setResetPasswordModal(null)}
+          title={t('resetPassword') || 'Reset Password'}
+          onConfirm={handleResetPassword}
+          confirmText={t('resetPassword') || 'Reset Password'}
+          cancelText={t('cancel') || 'Cancel'}
+          confirmButtonStyle={{ backgroundColor: '#ff9800' }}
+        >
+          <p>
+            {t('resetPasswordConfirm')?.replace('{email}', resetPasswordModal.email) || 
+             `Are you sure you want to reset the password for ${resetPasswordModal.email}?`}
+          </p>
+          <p style={{ fontSize: '0.875rem', color: colors.textSecondary, marginTop: '0.5rem' }}>
+            {t('resetPasswordNote') || 'A password reset email will be sent to this user.'}
+          </p>
+        </Modal>
+      )}
+
+      {/* Resend Invitation Modal */}
+      {resendInvitationModal && (
+        <Modal
+          isOpen={resendInvitationModal.isOpen}
+          onClose={() => setResendInvitationModal(null)}
+          title={t('resendInvitation') || 'Resend Invitation'}
+          onConfirm={handleResendInvitation}
+          confirmText={t('resendInvitation') || 'Resend Invitation'}
+          cancelText={t('cancel') || 'Cancel'}
+          confirmButtonStyle={{ backgroundColor: '#2196f3' }}
+        >
+          <p>
+            {t('resendInvitationConfirm')?.replace('{email}', resendInvitationModal.email) || 
+             `Are you sure you want to resend the invitation email to ${resendInvitationModal.email}?`}
+          </p>
+          <p style={{ fontSize: '0.875rem', color: colors.textSecondary, marginTop: '0.5rem' }}>
+            {t('resendInvitationNote') || 'A new invitation email will be sent to this user.'}
+          </p>
+        </Modal>
       )}
     </div>
   )

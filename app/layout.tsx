@@ -3,7 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/ThemeContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
-import DynamicTitle from "@/components/DynamicTitle";
+import ClientWrapper from "@/components/ClientWrapper";
+import { ToastContainer } from "@/components/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,10 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <DynamicTitle />
         <ThemeProvider>
           <LanguageProvider>
-        {children}
+            <ClientWrapper>
+              {children}
+            </ClientWrapper>
+            <ToastContainer />
           </LanguageProvider>
         </ThemeProvider>
       </body>

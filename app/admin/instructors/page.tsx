@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/lib/useTheme";
 import { useLanguage } from "@/lib/LanguageContext";
+import Spinner from "@/components/Spinner";
+import Modal from "@/components/Modal";
+import { showToast } from "@/components/Toast";
 
 interface Instructor {
   id: string;
@@ -35,6 +38,13 @@ export default function InstructorsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Instructor>>({});
   const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newInstructor, setNewInstructor] = useState({
+    email: '',
+    name: ''
+  });
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; instructorId: string; instructorName: string } | null>(null);
   const router = useRouter();
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -175,14 +185,20 @@ export default function InstructorsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!token || !confirm(t("deleteConfirm"))) return;
+  const handleDeleteClick = (id: string, instructorName: string) => {
+    setDeleteModal({ isOpen: true, instructorId: id, instructorName });
+  };
 
-    setDeletingId(id);
+  const handleDelete = async () => {
+    if (!token || !deleteModal) return;
+
+    const { instructorId } = deleteModal;
+    setDeleteModal(null);
+    setDeletingId(instructorId);
     setError(null);
 
     try {
-      const response = await fetch(`/api/instructors/${id}`, {
+      const response = await fetch(`/api/instructors/${instructorId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -196,11 +212,14 @@ export default function InstructorsPage() {
         );
       }
 
-      setInstructors(instructors.filter((i) => i.id !== id));
+      setInstructors(instructors.filter((i) => i.id !== instructorId));
       setDeletingId(null);
+      showToast(t("instructorDeletedSuccessfully") || "Instructor deleted successfully", "success");
     } catch (err: any) {
-      setError(err.message || "Failed to delete instructor");
+      const errorMsg = err.message || "Failed to delete instructor";
+      setError(errorMsg);
       setDeletingId(null);
+      showToast(errorMsg, "error");
     }
   };
 
@@ -212,10 +231,61 @@ export default function InstructorsPage() {
     setEditForm({ ...editForm, specialties });
   };
 
+  const handleAddInstructor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+
+    setAdding(true);
+    setError(null);
+
+    try {
+      // Create user with INSTRUCTOR role
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: newInstructor.email,
+          name: newInstructor.name || undefined,
+          role: 'INSTRUCTOR'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const created = await response.json();
+      
+      // Refresh instructors list
+      await fetchInstructors(token);
+      
+      // Reset form
+      setNewInstructor({ email: '', name: '' });
+      setShowAddForm(false);
+      
+      // Show success message
+      setError(null);
+      showToast(
+        `${t('createNewInstructor')} ${t('successfully') || 'successfully'}! ${t('invitationSent') || 'Invitation sent to'} ${created.email}`,
+        'success'
+      );
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to add instructor';
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   if (!token) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>
-        <p>Loading...</p>
+        <Spinner text={t("loading")} />
       </div>
     );
   }
@@ -242,21 +312,45 @@ export default function InstructorsPage() {
         <h2 style={{ margin: 0, fontSize: "1.25rem", color: colors.text }}>
           {t("instructors")}
         </h2>
-        <button
-          onClick={refreshData}
-          disabled={loading}
-          style={{
-            padding: "0.5rem 1rem",
-            backgroundColor: "#1976d2",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          {loading ? t("loading") : t("refresh")}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            style={{
+              padding: "0.5rem 1rem",
+              backgroundColor: "#4caf50",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            {showAddForm ? t("cancel") : t("addInstructor") || "Add Instructor"}
+          </button>
+          <button
+            onClick={refreshData}
+            disabled={loading}
+              style={{
+                padding: "0.5rem 1rem",
+                backgroundColor: "#1976d2",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem"
+              }}
+            >
+              {loading ? (
+                <>
+                  <Spinner size={16} color="#ffffff" />
+                  <span>{t("loading")}</span>
+                </>
+              ) : t("refresh")}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -270,6 +364,89 @@ export default function InstructorsPage() {
           }}
         >
           <p style={{ margin: 0 }}>Error: {error}</p>
+        </div>
+      )}
+
+      {showAddForm && (
+        <div style={{
+          padding: '1.5rem',
+          backgroundColor: theme === 'dark' ? '#2a2a2a' : '#f9f9f9',
+          borderRadius: '4px',
+          marginBottom: '1.5rem',
+          border: `1px solid ${colors.border}`
+        }}>
+          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: colors.text }}>{t('createNewInstructor')}</h3>
+          <p style={{ marginBottom: '1rem', color: colors.textSecondary, fontSize: '0.875rem' }}>
+            {t('createNewInstructorDescription')}
+          </p>
+          <form onSubmit={handleAddInstructor}>
+            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr auto' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem', color: colors.text }}>
+                  {t('email')} *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={newInstructor.email}
+                  onChange={(e) => setNewInstructor({ ...newInstructor, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                    backgroundColor: colors.cardBg,
+                    color: colors.text
+                  }}
+                  placeholder={t('emailPlaceholder')}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem', color: colors.text }}>
+                  {t('name')}
+                </label>
+                <input
+                  type="text"
+                  value={newInstructor.name}
+                  onChange={(e) => setNewInstructor({ ...newInstructor, name: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                    backgroundColor: colors.cardBg,
+                    color: colors.text
+                  }}
+                  placeholder={t('fullNamePlaceholder')}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button
+                  type="submit"
+                  disabled={adding}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    backgroundColor: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: adding ? 'not-allowed' : 'pointer',
+                    opacity: adding ? 0.6 : 1,
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {adding && <Spinner size={16} color="#ffffff" />}
+                  {adding ? t('loading') : t('createAndSendInvite')}
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       )}
 
@@ -563,7 +740,7 @@ export default function InstructorsPage() {
                             {t("edit")}
                           </button>
                           <button
-                            onClick={() => handleDelete(instructor.id)}
+                            onClick={() => handleDeleteClick(instructor.id, instructor.user?.name || instructor.user?.email || 'Instructor')}
                             disabled={
                               editingId === instructor.id ||
                               deletingId === instructor.id
@@ -599,156 +776,246 @@ export default function InstructorsPage() {
                         <td
                           colSpan={9}
                           style={{
-                            padding: "1rem",
-                            backgroundColor: "#f9f9f9",
+                            padding: "1.5rem",
+                            backgroundColor: theme === 'dark' ? '#252525' : '#f9f9f9',
+                            borderBottom: `1px solid ${colors.border}`,
+                            transition: "background-color 0.3s, border-color 0.3s",
                           }}
                         >
                           <div
                             style={{
-                              padding: "1rem",
-                              backgroundColor: "white",
-                              borderRadius: "4px",
-                              border: "1px solid #e0e0e0",
+                              padding: "1.5rem",
+                              backgroundColor: colors.cardBg,
+                              borderRadius: "8px",
+                              border: `1px solid ${colors.border}`,
+                              boxShadow: theme === 'light' ? '0 2px 4px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.3)',
                             }}
                           >
-                            <h4 style={{ marginTop: 0, marginBottom: "1rem" }}>
+                            <h4 style={{ 
+                              marginTop: 0, 
+                              marginBottom: "1.5rem",
+                              fontSize: "1.125rem",
+                              fontWeight: "600",
+                              color: colors.text
+                            }}>
                               {t("editInstructor")}
                             </h4>
                             <div
                               style={{
-                                display: "grid",
-                                gap: "1rem",
-                                gridTemplateColumns: "1fr 1fr 1fr auto",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "1.5rem",
                               }}
                             >
-                              <div>
-                                <label
-                                  style={{
-                                    display: "block",
-                                    marginBottom: "0.5rem",
-                                    fontWeight: "bold",
-                                    fontSize: "0.875rem",
-                                  }}
-                                >
-                                  {t("bio")}
-                                </label>
-                                <textarea
-                                  value={editForm.bio || ""}
-                                  onChange={(e) =>
-                                    setEditForm({
-                                      ...editForm,
-                                      bio: e.target.value,
-                                    })
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    padding: "0.5rem",
-                                    border: "1px solid #ccc",
-                                    borderRadius: "4px",
-                                    fontSize: "0.875rem",
-                                    minHeight: "60px",
-                                  }}
-                                  placeholder={t("instructorBioPlaceholder")}
-                                />
-                              </div>
-                              <div>
-                                <label
-                                  style={{
-                                    display: "block",
-                                    marginBottom: "0.5rem",
-                                    fontWeight: "bold",
-                                    fontSize: "0.875rem",
-                                  }}
-                                >
-                                  {t("specialtiesCommaSeparated")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editForm.specialties?.join(", ") || ""}
-                                  onChange={(e) =>
-                                    handleSpecialtyChange(e.target.value)
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    padding: "0.5rem",
-                                    border: "1px solid #ccc",
-                                    borderRadius: "4px",
-                                    fontSize: "0.875rem",
-                                  }}
-                                  placeholder={t("specialtiesPlaceholder")}
-                                />
-                              </div>
-                              <div>
-                                <label
-                                  style={{
-                                    display: "block",
-                                    marginBottom: "0.5rem",
-                                    fontWeight: "bold",
-                                    fontSize: "0.875rem",
-                                  }}
-                                >
-                                  {t("status")}
-                                </label>
-                                <select
-                                  value={editForm.status || "ACTIVE"}
-                                  onChange={(e) =>
-                                    setEditForm({
-                                      ...editForm,
-                                      status: e.target.value,
-                                    })
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    padding: "0.5rem",
-                                    border: "1px solid #ccc",
-                                    borderRadius: "4px",
-                                    fontSize: "0.875rem",
-                                  }}
-                                >
-                                  <option value="ACTIVE">{t("active")}</option>
-                                  <option value="INACTIVE">
-                                    {t("inactive")}
-                                  </option>
-                                </select>
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gap: "1.5rem",
+                                  gridTemplateColumns: "1fr 1fr 1fr",
+                                }}
+                              >
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "0.5rem",
+                                      fontWeight: "600",
+                                      fontSize: "0.875rem",
+                                      color: colors.text,
+                                    }}
+                                  >
+                                    {t("bio")}
+                                  </label>
+                                  <textarea
+                                    value={editForm.bio || ""}
+                                    onChange={(e) =>
+                                      setEditForm({
+                                        ...editForm,
+                                        bio: e.target.value,
+                                      })
+                                    }
+                                    style={{
+                                      width: "100%",
+                                      padding: "0.75rem",
+                                      border: `1px solid ${colors.border}`,
+                                      borderRadius: "6px",
+                                      fontSize: "0.875rem",
+                                      minHeight: "100px",
+                                      backgroundColor: colors.inputBg,
+                                      color: colors.text,
+                                      resize: "vertical",
+                                      fontFamily: "inherit",
+                                      transition: "border-color 0.3s, background-color 0.3s",
+                                    }}
+                                    onFocus={(e) => {
+                                      e.target.style.borderColor = "#1976d2";
+                                    }}
+                                    onBlur={(e) => {
+                                      e.target.style.borderColor = colors.border;
+                                    }}
+                                    placeholder={t("instructorBioPlaceholder")}
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "0.5rem",
+                                      fontWeight: "600",
+                                      fontSize: "0.875rem",
+                                      color: colors.text,
+                                    }}
+                                  >
+                                    {t("specialtiesCommaSeparated")}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editForm.specialties?.join(", ") || ""}
+                                    onChange={(e) =>
+                                      handleSpecialtyChange(e.target.value)
+                                    }
+                                    style={{
+                                      width: "100%",
+                                      padding: "0.75rem",
+                                      border: `1px solid ${colors.border}`,
+                                      borderRadius: "6px",
+                                      fontSize: "0.875rem",
+                                      backgroundColor: colors.inputBg,
+                                      color: colors.text,
+                                      fontFamily: "inherit",
+                                      transition: "border-color 0.3s, background-color 0.3s",
+                                    }}
+                                    onFocus={(e) => {
+                                      e.target.style.borderColor = "#1976d2";
+                                    }}
+                                    onBlur={(e) => {
+                                      e.target.style.borderColor = colors.border;
+                                    }}
+                                    placeholder={t("specialtiesPlaceholder")}
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "0.5rem",
+                                      fontWeight: "600",
+                                      fontSize: "0.875rem",
+                                      color: colors.text,
+                                    }}
+                                  >
+                                    {t("status")}
+                                  </label>
+                                  <select
+                                    value={editForm.status || "ACTIVE"}
+                                    onChange={(e) =>
+                                      setEditForm({
+                                        ...editForm,
+                                        status: e.target.value,
+                                      })
+                                    }
+                                    style={{
+                                      width: "100%",
+                                      padding: "0.75rem",
+                                      border: `1px solid ${colors.border}`,
+                                      borderRadius: "6px",
+                                      fontSize: "0.875rem",
+                                      backgroundColor: colors.inputBg,
+                                      color: colors.text,
+                                      fontFamily: "inherit",
+                                      cursor: "pointer",
+                                      transition: "border-color 0.3s, background-color 0.3s",
+                                    }}
+                                    onFocus={(e) => {
+                                      e.target.style.borderColor = "#1976d2";
+                                    }}
+                                    onBlur={(e) => {
+                                      e.target.style.borderColor = colors.border;
+                                    }}
+                                  >
+                                    <option value="ACTIVE">{t("active")}</option>
+                                    <option value="INACTIVE">
+                                      {t("inactive")}
+                                    </option>
+                                  </select>
+                                </div>
                               </div>
                               <div
                                 style={{
                                   display: "flex",
-                                  alignItems: "flex-end",
-                                  gap: "0.5rem",
+                                  justifyContent: "flex-end",
+                                  gap: "0.75rem",
+                                  paddingTop: "0.5rem",
                                 }}
                               >
-                                <button
-                                  onClick={handleSaveEdit}
-                                  disabled={saving}
-                                  style={{
-                                    padding: "0.5rem 1rem",
-                                    backgroundColor: "#4caf50",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "4px",
-                                    cursor: saving ? "not-allowed" : "pointer",
-                                    opacity: saving ? 0.6 : 1,
-                                    fontSize: "0.875rem",
-                                  }}
-                                >
-                                  {saving ? t("saving") : t("save")}
-                                </button>
                                 <button
                                   onClick={handleCancelEdit}
                                   disabled={saving}
                                   style={{
-                                    padding: "0.5rem 1rem",
-                                    backgroundColor: "#999",
+                                    padding: "0.75rem 1.5rem",
+                                    backgroundColor: saving
+                                      ? (theme === 'dark' ? '#555' : '#ccc')
+                                      : (theme === 'dark' ? '#666' : "#999"),
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "4px",
+                                    borderRadius: "6px",
                                     cursor: saving ? "not-allowed" : "pointer",
                                     opacity: saving ? 0.6 : 1,
                                     fontSize: "0.875rem",
+                                    fontWeight: "600",
+                                    whiteSpace: "nowrap",
+                                    transition: "background-color 0.3s, opacity 0.3s",
+                                    minWidth: "100px",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!saving) {
+                                      e.currentTarget.style.backgroundColor = theme === 'dark' ? '#777' : "#888";
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!saving) {
+                                      e.currentTarget.style.backgroundColor = theme === 'dark' ? '#666' : "#999";
+                                    }
                                   }}
                                 >
                                   {t("cancel")}
+                                </button>
+                                <button
+                                  onClick={handleSaveEdit}
+                                  disabled={saving}
+                                  style={{
+                                    padding: "0.75rem 1.5rem",
+                                    backgroundColor: saving 
+                                      ? (theme === 'dark' ? '#555' : '#ccc') 
+                                      : "#4caf50",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "6px",
+                                    cursor: saving ? "not-allowed" : "pointer",
+                                    opacity: saving ? 0.6 : 1,
+                                    fontSize: "0.875rem",
+                                    fontWeight: "600",
+                                    whiteSpace: "nowrap",
+                                    transition: "background-color 0.3s, opacity 0.3s",
+                                    minWidth: "100px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "0.5rem"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!saving) {
+                                      e.currentTarget.style.backgroundColor = "#45a049";
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!saving) {
+                                      e.currentTarget.style.backgroundColor = "#4caf50";
+                                    }
+                                  }}
+                                >
+                                  {saving && <Spinner size={16} color="#ffffff" />}
+                                  {saving ? t("saving") : t("save")}
                                 </button>
                               </div>
                             </div>
@@ -772,6 +1039,27 @@ export default function InstructorsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Delete Instructor Modal */}
+      {deleteModal && (
+        <Modal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal(null)}
+          title={t("deleteInstructor") || "Delete Instructor"}
+          onConfirm={handleDelete}
+          confirmText={t("delete") || "Delete"}
+          cancelText={t("cancel") || "Cancel"}
+          confirmButtonStyle={{ backgroundColor: "#f44336" }}
+        >
+          <p>
+            {t("deleteConfirm")?.replace("{name}", deleteModal.instructorName) ||
+             `Are you sure you want to delete ${deleteModal.instructorName}?`}
+          </p>
+          <p style={{ fontSize: "0.875rem", color: "#f44336", marginTop: "0.5rem", fontWeight: "600" }}>
+            {t("deleteWarning") || "This action cannot be undone."}
+          </p>
+        </Modal>
       )}
     </div>
   );

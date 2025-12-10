@@ -12,7 +12,19 @@ export async function POST(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
 
-    const result = await mainBackendClient.resetUserPassword(id, authToken)
+    // Fetch user to get their role
+    let userRole: string | undefined
+    try {
+      const user = await mainBackendClient.getUsers(authToken)
+      const foundUser = Array.isArray(user) ? user.find((u: any) => u.id === id) : null
+      if (foundUser) {
+        userRole = foundUser.role
+      }
+    } catch (err) {
+      console.warn('Could not fetch user role, will use default:', err)
+    }
+
+    const result = await mainBackendClient.resetUserPassword(id, authToken, userRole)
 
     return NextResponse.json(result)
   } catch (error: any) {
@@ -29,4 +41,5 @@ export async function POST(
     )
   }
 }
+
 

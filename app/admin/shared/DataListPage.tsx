@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/LanguageContext'
+import Spinner from '@/components/Spinner'
 
 interface DataListPageProps {
   endpoint: string
@@ -98,16 +99,25 @@ export default function DataListPage({ endpoint, title }: DataListPageProps) {
             border: 'none',
             borderRadius: '4px',
             cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1
+            opacity: loading ? 0.6 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem'
           }}
         >
-          {loading ? t('loading') : t('refresh')}
+          {loading ? (
+            <>
+              <Spinner size={16} color="#ffffff" />
+              <span>{t('loading')}</span>
+            </>
+          ) : t('refresh')}
         </button>
       </div>
 
       {loading && (
         <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <p>{t('loading')}</p>
+          <Spinner text={t('loading')} />
         </div>
       )}
 

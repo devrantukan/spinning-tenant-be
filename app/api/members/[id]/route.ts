@@ -3,9 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { mainBackendClient } from '@/lib/main-backend-client'
 
 /**
- * GET /api/instructors/[id] - Get a specific instructor
- * PATCH /api/instructors/[id] - Update an instructor
- * DELETE /api/instructors/[id] - Delete an instructor
+ * GET /api/members/[id] - Get a specific member
  */
 export async function GET(
   request: NextRequest,
@@ -16,9 +14,9 @@ export async function GET(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    const instructor = await mainBackendClient.getInstructor(id, authToken)
+    const member = await mainBackendClient.getMember(id, authToken)
     
-    return NextResponse.json(instructor)
+    return NextResponse.json(member)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -26,14 +24,23 @@ export async function GET(
         { status: 401 }
       )
     }
-    console.error('Error fetching instructor:', error)
+    if (error.status === 404) {
+      return NextResponse.json(
+        { error: 'Member not found' },
+        { status: 404 }
+      )
+    }
+    console.error('Error fetching member:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
 
+/**
+ * PATCH /api/members/[id] - Update a member
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -44,9 +51,9 @@ export async function PATCH(
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     const body = await request.json()
     
-    const instructor = await mainBackendClient.updateInstructor(id, body, authToken)
+    const member = await mainBackendClient.updateMember(id, body, authToken)
     
-    return NextResponse.json(instructor)
+    return NextResponse.json(member)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -54,7 +61,13 @@ export async function PATCH(
         { status: 401 }
       )
     }
-    console.error('Error updating instructor:', error)
+    if (error.status === 404) {
+      return NextResponse.json(
+        { error: 'Member not found' },
+        { status: 404 }
+      )
+    }
+    console.error('Error updating member:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -62,6 +75,9 @@ export async function PATCH(
   }
 }
 
+/**
+ * DELETE /api/members/[id] - Delete a member
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -71,9 +87,9 @@ export async function DELETE(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    await mainBackendClient.deleteInstructor(id, authToken)
+    await mainBackendClient.deleteMember(id, authToken)
     
-    return NextResponse.json({ message: 'Instructor deleted successfully' })
+    return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -81,13 +97,18 @@ export async function DELETE(
         { status: 401 }
       )
     }
-    console.error('Error deleting instructor:', error)
+    if (error.status === 404) {
+      return NextResponse.json(
+        { error: 'Member not found' },
+        { status: 404 }
+      )
+    }
+    console.error('Error deleting member:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
 }
-
 
 

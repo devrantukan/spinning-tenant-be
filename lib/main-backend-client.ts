@@ -147,7 +147,39 @@ async function requestMainBackend(
       throw error;
     }
 
-    // Network errors or other issues
+    // Network errors (connection refused, network unreachable, etc.)
+    const isConnectionError =
+      error.message === "fetch failed" ||
+      error.code === "ECONNREFUSED" ||
+      error.message?.includes("ECONNREFUSED") ||
+      error.message?.includes("network") ||
+      (error.cause && (error.cause as any).code === "ECONNREFUSED");
+
+    if (isConnectionError) {
+      const connectionError = new Error(
+        `Main backend server is not reachable at ${MAIN_BACKEND_URL}. Please ensure the main backend is running and accessible.`
+      );
+      (connectionError as any).status = 503;
+      (connectionError as any).statusText = "Service Unavailable";
+      (connectionError as any).errorData = {
+        error: "Connection refused",
+        code: error.code || "ECONNREFUSED",
+        message: "Main backend server is not running or unreachable",
+        url: finalUrl,
+      };
+      (connectionError as any).connectionError = true;
+
+      console.error(`Error calling main backend ${endpoint}:`, {
+        message: connectionError.message,
+        status: 503,
+        url: finalUrl,
+        originalError: error.message || error,
+      });
+
+      throw connectionError;
+    }
+
+    // Other network errors or issues
     console.error(`Error calling main backend ${endpoint}:`, {
       message: error.message,
       url: finalUrl,
@@ -245,8 +277,31 @@ export const mainBackendClient = {
   getMembers: (authToken?: string) =>
     requestMainBackend(`/api/members`, { method: "GET", authToken }),
 
+  createMember: (data: any, authToken?: string) =>
+    requestMainBackend(`/api/members`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
   getMember: (id: string, authToken?: string) =>
     requestMainBackend(`/api/members/${id}`, { method: "GET", authToken }),
+
+  updateMember: (id: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/members/${id}`, {
+      method: "PATCH",
+      body: data,
+      authToken,
+    }),
+
+  deleteMember: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/members/${id}`, { method: "DELETE", authToken }),
+
+  getMemberCreditTransactions: (memberId: string, authToken?: string) =>
+    requestMainBackend(`/api/members/${memberId}/credit-transactions`, {
+      method: "GET",
+      authToken,
+    }),
 
   // Instructors
   getInstructors: (authToken?: string) =>
@@ -284,9 +339,13 @@ export const mainBackendClient = {
     },
     authToken?: string
   ) => {
-    // Get tenant URL from environment variable
-    const tenantUrl =
-      process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    // Use TENANT_FE_URL for members, TENANT_URL for instructors and other roles
+    const isMember = data.role === "MEMBER";
+    const tenantUrl = isMember
+      ? process.env.TENANT_FE_URL ||
+        process.env.TENANT_URL ||
+        process.env.NEXT_PUBLIC_SITE_URL
+      : process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
     const headers: Record<string, string> = {};
     const body = { ...data };
@@ -294,10 +353,17 @@ export const mainBackendClient = {
     if (tenantUrl) {
       headers["X-Tenant-URL"] = tenantUrl;
       (body as any).tenantUrl = tenantUrl;
-      console.log("[TENANT_BACKEND] Sending TENANT_URL for user invitation:", {
-        tenantUrl,
-        email: data.email,
-      });
+      console.log(
+        `[TENANT_BACKEND] Sending ${
+          isMember ? "TENANT_FE_URL" : "TENANT_URL"
+        } for user invitation:`,
+        {
+          tenantUrl,
+          email: data.email,
+          role: data.role,
+          urlType: isMember ? "TENANT_FE_URL" : "TENANT_URL",
+        }
+      );
     }
 
     return requestMainBackend(`/api/users`, {
@@ -316,20 +382,22 @@ export const mainBackendClient = {
     }),
 
   resendUserInvitation: (userId: string, authToken?: string) => {
-    // Get tenant URL from environment variable
-    const tenantUrl =
-      process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    // Get tenant frontend URL from environment variable for invitation redirects
+    const tenantFeUrl =
+      process.env.TENANT_FE_URL ||
+      process.env.TENANT_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL;
 
     const headers: Record<string, string> = {};
     const body: Record<string, string> = {};
 
-    if (tenantUrl) {
-      headers["X-Tenant-URL"] = tenantUrl;
-      body.tenantUrl = tenantUrl;
+    if (tenantFeUrl) {
+      headers["X-Tenant-URL"] = tenantFeUrl;
+      body.tenantUrl = tenantFeUrl;
       console.log(
-        "[TENANT_BACKEND] Sending TENANT_URL for resend invitation:",
+        "[TENANT_BACKEND] Sending TENANT_FE_URL for resend invitation:",
         {
-          tenantUrl,
+          tenantFeUrl,
           userId,
         }
       );
@@ -343,21 +411,31 @@ export const mainBackendClient = {
     });
   },
 
-  resetUserPassword: (userId: string, authToken?: string) => {
-    // Get tenant URL from environment variable
-    const tenantUrl =
-      process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  resetUserPassword: (userId: string, authToken?: string, role?: string) => {
+    // Use TENANT_FE_URL for members, TENANT_URL for instructors and other roles
+    const isMember = role === "MEMBER";
+    const tenantUrl = isMember
+      ? process.env.TENANT_FE_URL ||
+        process.env.TENANT_URL ||
+        process.env.NEXT_PUBLIC_SITE_URL
+      : process.env.TENANT_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
     if (!tenantUrl) {
       console.warn(
-        "[TENANT_BACKEND] TENANT_URL not configured! Password reset will use default URL from main backend."
+        "[TENANT_BACKEND] Tenant URL not configured! Password reset will use default URL from main backend."
       );
     } else {
-      console.log("[TENANT_BACKEND] Sending TENANT_URL for password reset:", {
-        tenantUrl,
-        userId,
-        source: process.env.TENANT_URL ? "TENANT_URL" : "NEXT_PUBLIC_SITE_URL",
-      });
+      console.log(
+        `[TENANT_BACKEND] Sending ${
+          isMember ? "TENANT_FE_URL" : "TENANT_URL"
+        } for password reset:`,
+        {
+          tenantUrl,
+          userId,
+          role,
+          urlType: isMember ? "TENANT_FE_URL" : "TENANT_URL",
+        }
+      );
     }
 
     const headers: Record<string, string> = {};
