@@ -37,6 +37,8 @@ export default function UsersPage() {
   const [resendingInvites, setResendingInvites] = useState<Set<string>>(new Set())
   const [resettingPasswords, setResettingPasswords] = useState<Set<string>>(new Set())
   const [invitationStatuses, setInvitationStatuses] = useState<Record<string, any>>({})
+  const [resetPasswordModal, setResetPasswordModal] = useState<{ isOpen: boolean; userId: string; email: string } | null>(null)
+  const [resendInvitationModal, setResendInvitationModal] = useState<{ isOpen: boolean; userId: string; email: string } | null>(null)
   const router = useRouter()
   const { theme } = useTheme()
   const { t } = useLanguage()

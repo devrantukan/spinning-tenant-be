@@ -255,7 +255,7 @@ export default function MembersPage() {
         body: JSON.stringify({
           userId: userId,
           status: formData.status,
-          creditBalance: formData.creditBalance || 0
+          creditBalance: Math.round(formData.creditBalance || 0)
         })
       })
 
@@ -310,12 +310,12 @@ export default function MembersPage() {
 
       // If credit change is specified, use it; otherwise use direct balance
       if (creditChange.amount !== 0) {
-        updateBody.creditChange = creditChange.amount
+        updateBody.creditChange = Math.round(creditChange.amount)
         if (creditChange.description) {
           updateBody.description = creditChange.description
         }
       } else if (formData.creditBalance !== undefined) {
-        updateBody.creditBalance = formData.creditBalance || 0
+        updateBody.creditBalance = Math.round(formData.creditBalance || 0)
       }
 
       console.log('Updating member with ID:', currentEditingId, 'Body:', updateBody)
@@ -730,10 +730,10 @@ export default function MembersPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.01"
-                      value={creditChange.amount || ''}
-                      onChange={(e) => setCreditChange({ ...creditChange, amount: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.00"
+                      step="1"
+                      value={creditChange.amount !== 0 ? creditChange.amount : ''}
+                      onChange={(e) => setCreditChange({ ...creditChange, amount: parseInt(e.target.value) || 0 })}
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '0.5rem',
@@ -766,10 +766,10 @@ export default function MembersPage() {
                     />
                   </div>
                   <div style={{ fontSize: '0.75rem', color: colors.textSecondary }}>
-                    {t('currentBalance') || 'Current Balance'}: {formData.creditBalance?.toFixed(2) || '0.00'} | 
+                    {t('currentBalance') || 'Current Balance'}: {Math.round(formData.creditBalance || 0)} | 
                     {creditChange.amount !== 0 && (
                       <span style={{ marginLeft: '0.5rem', color: creditChange.amount > 0 ? '#4caf50' : '#f44336' }}>
-                        {t('newBalance') || 'New Balance'}: {(formData.creditBalance || 0) + creditChange.amount}
+                        {t('newBalance') || 'New Balance'}: {Math.round((formData.creditBalance || 0) + creditChange.amount)}
                       </span>
                     )}
                   </div>
@@ -782,10 +782,10 @@ export default function MembersPage() {
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
-                  value={formData.creditBalance || 0}
-                  onChange={(e) => setFormData({ ...formData, creditBalance: parseFloat(e.target.value) || 0 })}
+                  value={Math.round(formData.creditBalance || 0)}
+                  onChange={(e) => setFormData({ ...formData, creditBalance: parseInt(e.target.value) || 0 })}
                   placeholder="0"
                   style={{
                     width: '100%',
@@ -900,7 +900,7 @@ export default function MembersPage() {
                     </span>
                   </td>
                   <td style={{ padding: '1rem', borderBottom: `1px solid ${colors.border}`, color: colors.text }}>
-                    {typeof member.creditBalance === 'number' ? member.creditBalance.toFixed(2) : '0.00'}
+                    {typeof member.creditBalance === 'number' ? Math.round(member.creditBalance) : 0}
                   </td>
                   <td style={{ padding: '1rem', borderBottom: `1px solid ${colors.border}` }}>
                     {(() => {
@@ -1160,13 +1160,13 @@ export default function MembersPage() {
                           </span>
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'right', color: transaction.amount > 0 ? '#4caf50' : '#f44336', fontWeight: '600' }}>
-                          {transaction.amount > 0 ? '+' : ''}{transaction.amount.toFixed(2)}
+                          {transaction.amount > 0 ? '+' : ''}{Math.round(transaction.amount)}
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'right', color: colors.text }}>
-                          {transaction.balanceBefore.toFixed(2)}
+                          {Math.round(transaction.balanceBefore)}
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'right', color: colors.text, fontWeight: '600' }}>
-                          {transaction.balanceAfter.toFixed(2)}
+                          {Math.round(transaction.balanceAfter)}
                         </td>
                         <td style={{ padding: '0.75rem', color: colors.textSecondary }}>
                           {transaction.description || '-'}

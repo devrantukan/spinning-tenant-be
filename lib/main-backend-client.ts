@@ -201,6 +201,12 @@ export const mainBackendClient = {
       authToken,
     }),
 
+  getOrganizationPriceHistory: (authToken?: string) =>
+    requestMainBackend(`/api/admin/organizations/price-history`, {
+      method: "GET",
+      authToken,
+    }),
+
   // Classes
   getClasses: (authToken?: string) =>
     requestMainBackend(`/api/classes`, { method: "GET", authToken }),

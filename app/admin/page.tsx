@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/lib/useTheme";
 import Spinner from "@/components/Spinner";
+import { showToast } from "@/components/Toast";
 
 interface OrganizationData {
   id: string;
@@ -31,6 +32,11 @@ interface OrganizationData {
   smtpFromName?: string | null;
   // Language preference
   language?: string | null;
+  // Pricing
+  creditPrice?: number | null;
+  currency?: string | null;
+  pricePeriodStart?: string | null;
+  pricePeriodEnd?: string | null;
   _count?: {
     users: number;
     members: number;
@@ -53,6 +59,10 @@ export default function OrganizationPage() {
   const [token, setToken] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<OrganizationData>>({});
+  const [priceChangeReason, setPriceChangeReason] = useState('');
+  const [viewingPriceHistory, setViewingPriceHistory] = useState(false);
+  const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [loadingPriceHistory, setLoadingPriceHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
@@ -186,10 +196,18 @@ export default function OrganizationPage() {
 
     try {
       // Prepare update data - only include password if it was changed (not empty)
-      const updateData = { ...editForm };
+      const updateData: any = { ...editForm };
       // If password is empty, don't send it (to keep current password)
       if (!updateData.smtpPassword || updateData.smtpPassword === "") {
         delete updateData.smtpPassword;
+      }
+
+      // Include price change reason if credit price or currency is being changed
+      if ((updateData.creditPrice !== undefined && updateData.creditPrice !== data?.creditPrice) ||
+          (updateData.currency !== undefined && updateData.currency !== data?.currency)) {
+        if (priceChangeReason) {
+          updateData.priceChangeReason = priceChangeReason;
+        }
       }
 
       const response = await fetch("/api/organization", {
@@ -209,14 +227,18 @@ export default function OrganizationPage() {
       const updated = await response.json();
       setData(updated);
       setIsEditing(false);
+      setPriceChangeReason('');
       fetchOrganization(token);
+
+      // Show success toast
+      showToast(t("organizationUpdatedSuccessfully") || "Organization updated successfully", "success");
 
       // Dispatch event to update page title
       window.dispatchEvent(new CustomEvent("organization-updated"));
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : t("failedToUpdateOrganization")
-      );
+      const errorMessage = err instanceof Error ? err.message : t("failedToUpdateOrganization");
+      setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setSaving(false);
     }
@@ -225,7 +247,33 @@ export default function OrganizationPage() {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditForm({});
+    setPriceChangeReason('');
     setError(null);
+  };
+
+  const fetchPriceHistory = async () => {
+    if (!token) return;
+    
+    setLoadingPriceHistory(true);
+    try {
+      const response = await fetch("/api/organization/price-history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        setPriceHistory(Array.isArray(history) ? history : []);
+      } else {
+        setPriceHistory([]);
+      }
+    } catch (err) {
+      console.error("Error fetching price history:", err);
+      setPriceHistory([]);
+    } finally {
+      setLoadingPriceHistory(false);
+    }
   };
 
   const refreshData = () => {
@@ -1084,6 +1132,386 @@ export default function OrganizationPage() {
                 </table>
               </div>
 
+              {/* Pricing Configuration Display */}
+              <div
+                style={{
+                  backgroundColor: colors.infoBg,
+                  padding: "1.5rem",
+                  borderRadius: "4px",
+                  border: `1px solid ${colors.border}`,
+                  transition: "background-color 0.3s, border-color 0.3s",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                <h3
+                  style={{
+                    marginTop: 0,
+                    marginBottom: "1rem",
+                    color: colors.text,
+                  }}
+                >
+                  {t("pricing") || "Pricing"}
+                </h3>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <tbody>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                          width: "200px",
+                        }}
+                      >
+                        {t("creditPrice") || "Credit Price"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.creditPrice !== null && data.creditPrice !== undefined
+                          ? `${data.currency || 'USD'} ${data.creditPrice.toFixed(2)}`
+                          : "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("currency") || "Currency"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.currency || "USD"}
+                      </td>
+                    </tr>
+                    {data.pricePeriodStart && (
+                      <tr>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: `1px solid ${colors.border}`,
+                            fontWeight: "600",
+                            color: colors.text,
+                          }}
+                        >
+                          {t("pricePeriodStart") || "Price Period Start"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: `1px solid ${colors.border}`,
+                            color: colors.text,
+                          }}
+                        >
+                          {new Date(data.pricePeriodStart).toLocaleString()}
+                        </td>
+                      </tr>
+                    )}
+                    {data.pricePeriodEnd && (
+                      <tr>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: `1px solid ${colors.border}`,
+                            fontWeight: "600",
+                            color: colors.text,
+                          }}
+                        >
+                          {t("pricePeriodEnd") || "Price Period End"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "0.75rem",
+                            borderBottom: `1px solid ${colors.border}`,
+                            color: colors.text,
+                          }}
+                        >
+                          {new Date(data.pricePeriodEnd).toLocaleString()}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+                {(data.creditPrice !== null && data.creditPrice !== undefined) && (
+                  <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+                    <button
+                      onClick={() => {
+                        setViewingPriceHistory(!viewingPriceHistory);
+                        if (!viewingPriceHistory) {
+                          fetchPriceHistory();
+                        }
+                      }}
+                      style={{
+                        padding: "0.5rem 1rem",
+                        backgroundColor: theme === "dark" ? "#666" : "#999",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      {viewingPriceHistory ? (t("hidePriceHistory") || "Hide Price History") : (t("viewPriceHistory") || "View Price History")}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Price History */}
+              {viewingPriceHistory && (
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "1rem",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("priceHistory") || "Price History"}
+                  </h3>
+                  {loadingPriceHistory ? (
+                    <div style={{ padding: "2rem", textAlign: "center" }}>
+                      <Spinner text={t("loading")} />
+                    </div>
+                  ) : priceHistory.length > 0 ? (
+                    <div style={{ overflowX: "auto" }}>
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse: "collapse",
+                        }}
+                      >
+                        <thead>
+                          <tr>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("changedOn") || "Changed On"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("effectiveFrom") || "Effective From"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("effectiveUntil") || "Effective Until"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("creditPriceBefore") || "Credit Price Before"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("creditPriceAfter") || "Credit Price After"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("currencyBefore") || "Currency Before"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("currencyAfter") || "Currency After"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("changedBy") || "Changed By"}
+                            </th>
+                            <th
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                borderBottom: `2px solid ${colors.border}`,
+                                color: colors.text,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {t("reason") || "Reason"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {priceHistory.map((item: any) => (
+                            <tr key={item.id}>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                }}
+                              >
+                                {new Date(item.createdAt).toLocaleString()}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                }}
+                              >
+                                {item.effectiveFrom ? new Date(item.effectiveFrom).toLocaleString() : "-"}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                }}
+                              >
+                                {item.effectiveUntil ? new Date(item.effectiveUntil).toLocaleString() : (t("indefinite") || "Indefinite")}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                }}
+                              >
+                                {item.creditPriceBefore !== null ? `${item.currencyBefore || ''} ${item.creditPriceBefore.toFixed(2)}` : "-"}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {item.currencyAfter} {item.creditPriceAfter.toFixed(2)}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                }}
+                              >
+                                {item.currencyBefore || "-"}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {item.currencyAfter}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.textSecondary,
+                                }}
+                              >
+                                {item.changedBy?.name || item.changedBy?.email || "-"}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  color: colors.textSecondary,
+                                }}
+                              >
+                                {item.reason || "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p style={{ color: colors.textSecondary }}>
+                      {t("noPriceHistory") || "No price history available."}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {data._count && (
                 <div style={{ marginTop: "1.5rem" }}>
                   <h3 style={{ marginBottom: "0.5rem", color: colors.text }}>
@@ -1288,17 +1716,17 @@ export default function OrganizationPage() {
             </div>
           ) : (
             <div>
-              <h3
-                style={{
-                  marginTop: 0,
-                  marginBottom: "1rem",
-                  color: colors.text,
-                }}
-              >
-                {t("editOrganization")}
-              </h3>
               <div style={{ display: "grid", gap: "1.5rem" }}>
-                <div>
+                {/* Basic Information Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
+                >
                   <h3
                     style={{
                       marginTop: 0,
@@ -1407,7 +1835,16 @@ export default function OrganizationPage() {
                   </div>
                 </div>
 
-                <div>
+                {/* Contact Information Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
+                >
                   <h3
                     style={{
                       marginTop: 0,
@@ -1543,7 +1980,16 @@ export default function OrganizationPage() {
                   </div>
                 </div>
 
-                <div>
+                {/* Social Media Links Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
+                >
                   <h3
                     style={{
                       marginTop: 0,
@@ -1551,9 +1997,9 @@ export default function OrganizationPage() {
                       color: colors.text,
                     }}
                   >
-                    {t("socialMedia")}
+                    {t("socialMediaLinks")}
                   </h3>
-                  <div style={{ display: "grid", gap: "1rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem" }}>
                     <div>
                       <label
                         style={{
@@ -1715,7 +2161,16 @@ export default function OrganizationPage() {
                   </div>
                 </div>
 
-                <div>
+                {/* Location Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
+                >
                   <h3
                     style={{
                       marginTop: 0,
@@ -1813,7 +2268,16 @@ export default function OrganizationPage() {
                   </div>
                 </div>
 
-                <div>
+                {/* SMTP Configuration Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
+                >
                   <h3
                     style={{
                       marginTop: 0,
@@ -2054,6 +2518,38 @@ export default function OrganizationPage() {
                         }}
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* Language Configuration Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
+                >
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "1rem",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("emailLanguage")}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: "0.875rem",
+                      color: colors.textSecondary,
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    {t("languageDescription")}
+                  </p>
+                  <div style={{ display: "grid", gap: "1rem" }}>
                     <div>
                       <label
                         style={{
@@ -2063,17 +2559,8 @@ export default function OrganizationPage() {
                           color: colors.text,
                         }}
                       >
-                        {t("emailLanguage")}
+                        {t("language") || "Language"}
                       </label>
-                      <p
-                        style={{
-                          fontSize: "0.875rem",
-                          color: colors.textSecondary,
-                          marginBottom: "0.5rem",
-                        }}
-                      >
-                        {t("languageDescription")}
-                      </p>
                       <select
                         value={editForm.language || "en"}
                         onChange={(e) =>
@@ -2100,9 +2587,137 @@ export default function OrganizationPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Pricing Section */}
                 <div
-                  style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                  }}
                 >
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "1rem",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("pricing") || "Pricing"}
+                  </h3>
+                  <div style={{ display: "grid", gap: "1rem" }}>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("creditPrice") || "Credit Price"}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editForm.creditPrice !== null && editForm.creditPrice !== undefined ? editForm.creditPrice : ''}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            creditPrice: e.target.value ? parseFloat(e.target.value) : null,
+                          })
+                        }
+                        placeholder="0.00"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("currency") || "Currency"}
+                      </label>
+                      <select
+                        value={editForm.currency || "USD"}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            currency: e.target.value || "USD",
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="TRY">TRY (₺)</option>
+                        <option value="GBP">GBP (£)</option>
+                      </select>
+                    </div>
+                    {(editForm.creditPrice !== data?.creditPrice || editForm.currency !== data?.currency) && (
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "0.5rem",
+                            fontWeight: "600",
+                            color: colors.text,
+                          }}
+                        >
+                          {`${t("priceChangeReason") || "Price Change Reason"} (${t("optional") || "optional"})`}
+                        </label>
+                        <input
+                          type="text"
+                          value={priceChangeReason}
+                          onChange={(e) => setPriceChangeReason(e.target.value)}
+                          placeholder={t("priceChangeReasonPlaceholder") || "e.g., Seasonal adjustment"}
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: "4px",
+                            fontSize: "1rem",
+                            backgroundColor: colors.cardBg,
+                            color: colors.text,
+                            transition:
+                              "background-color 0.3s, border-color 0.3s, color 0.3s",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}
+              >
                   <button
                     onClick={handleSaveOrganization}
                     disabled={saving}
@@ -2134,7 +2749,6 @@ export default function OrganizationPage() {
                     {t("cancel")}
                   </button>
                 </div>
-              </div>
             </div>
           )}
         </div>
