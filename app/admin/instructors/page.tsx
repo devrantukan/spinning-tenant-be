@@ -41,10 +41,14 @@ export default function InstructorsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newInstructor, setNewInstructor] = useState({
-    email: '',
-    name: ''
+    email: "",
+    name: "",
   });
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; instructorId: string; instructorName: string } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    instructorId: string;
+    instructorName: string;
+  } | null>(null);
   const router = useRouter();
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -60,6 +64,7 @@ export default function InstructorsPage() {
       text: "#333",
       textSecondary: "#666",
       textMuted: "#999",
+      inputBg: "white",
     },
     dark: {
       cardBg: "#1e1e1e",
@@ -70,6 +75,7 @@ export default function InstructorsPage() {
       text: "#e0e0e0",
       textSecondary: "#b0b0b0",
       textMuted: "#888",
+      inputBg: "#252525",
     },
   };
 
@@ -214,7 +220,10 @@ export default function InstructorsPage() {
 
       setInstructors(instructors.filter((i) => i.id !== instructorId));
       setDeletingId(null);
-      showToast(t("instructorDeletedSuccessfully") || "Instructor deleted successfully", "success");
+      showToast(
+        t("instructorDeletedSuccessfully") || "Instructor deleted successfully",
+        "success"
+      );
     } catch (err: any) {
       const errorMsg = err.message || "Failed to delete instructor";
       setError(errorMsg);
@@ -240,17 +249,17 @@ export default function InstructorsPage() {
 
     try {
       // Create user with INSTRUCTOR role
-      const response = await fetch('/api/users', {
-        method: 'POST',
+      const response = await fetch("/api/users", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email: newInstructor.email,
           name: newInstructor.name || undefined,
-          role: 'INSTRUCTOR'
-        })
+          role: "INSTRUCTOR",
+        }),
       });
 
       if (!response.ok) {
@@ -259,24 +268,26 @@ export default function InstructorsPage() {
       }
 
       const created = await response.json();
-      
+
       // Refresh instructors list
       await fetchInstructors(token);
-      
+
       // Reset form
-      setNewInstructor({ email: '', name: '' });
+      setNewInstructor({ email: "", name: "" });
       setShowAddForm(false);
-      
+
       // Show success message
       setError(null);
       showToast(
-        `${t('createNewInstructor')} ${t('successfully') || 'successfully'}! ${t('invitationSent') || 'Invitation sent to'} ${created.email}`,
-        'success'
+        `${t("createNewInstructor")} ${t("successfully") || "successfully"}! ${
+          t("invitationSent") || "Invitation sent to"
+        } ${created.email}`,
+        "success"
       );
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to add instructor';
+      const errorMsg = err.message || "Failed to add instructor";
       setError(errorMsg);
-      showToast(errorMsg, 'error');
+      showToast(errorMsg, "error");
     } finally {
       setAdding(false);
     }
@@ -312,7 +323,7 @@ export default function InstructorsPage() {
         <h2 style={{ margin: 0, fontSize: "1.25rem", color: colors.text }}>
           {t("instructors")}
         </h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
             style={{
@@ -329,26 +340,28 @@ export default function InstructorsPage() {
           <button
             onClick={refreshData}
             disabled={loading}
-              style={{
-                padding: "0.5rem 1rem",
-                backgroundColor: "#1976d2",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.6 : 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem"
-              }}
-            >
-              {loading ? (
-                <>
-                  <Spinner size={16} color="#ffffff" />
-                  <span>{t("loading")}</span>
-                </>
-              ) : t("refresh")}
+            style={{
+              padding: "0.5rem 1rem",
+              backgroundColor: "#1976d2",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+            }}
+          >
+            {loading ? (
+              <>
+                <Spinner size={16} color="#ffffff" />
+                <span>{t("loading")}</span>
+              </>
+            ) : (
+              t("refresh")
+            )}
           </button>
         </div>
       </div>
@@ -368,81 +381,122 @@ export default function InstructorsPage() {
       )}
 
       {showAddForm && (
-        <div style={{
-          padding: '1.5rem',
-          backgroundColor: theme === 'dark' ? '#2a2a2a' : '#f9f9f9',
-          borderRadius: '4px',
-          marginBottom: '1.5rem',
-          border: `1px solid ${colors.border}`
-        }}>
-          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: colors.text }}>{t('createNewInstructor')}</h3>
-          <p style={{ marginBottom: '1rem', color: colors.textSecondary, fontSize: '0.875rem' }}>
-            {t('createNewInstructorDescription')}
+        <div
+          style={{
+            padding: "1.5rem",
+            backgroundColor: theme === "dark" ? "#2a2a2a" : "#f9f9f9",
+            borderRadius: "4px",
+            marginBottom: "1.5rem",
+            border: `1px solid ${colors.border}`,
+          }}
+        >
+          <h3
+            style={{ marginTop: 0, marginBottom: "1rem", color: colors.text }}
+          >
+            {t("createNewInstructor")}
+          </h3>
+          <p
+            style={{
+              marginBottom: "1rem",
+              color: colors.textSecondary,
+              fontSize: "0.875rem",
+            }}
+          >
+            {t("createNewInstructorDescription")}
           </p>
           <form onSubmit={handleAddInstructor}>
-            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr auto' }}>
+            <div
+              style={{
+                display: "grid",
+                gap: "1rem",
+                gridTemplateColumns: "1fr 1fr auto",
+              }}
+            >
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem', color: colors.text }}>
-                  {t('email')} *
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "0.5rem",
+                    fontWeight: "bold",
+                    fontSize: "0.875rem",
+                    color: colors.text,
+                  }}
+                >
+                  {t("email")} *
                 </label>
                 <input
                   type="email"
                   required
                   value={newInstructor.email}
-                  onChange={(e) => setNewInstructor({ ...newInstructor, email: e.target.value })}
+                  onChange={(e) =>
+                    setNewInstructor({
+                      ...newInstructor,
+                      email: e.target.value,
+                    })
+                  }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
+                    width: "100%",
+                    padding: "0.5rem",
                     border: `1px solid ${colors.border}`,
-                    borderRadius: '4px',
-                    fontSize: '1rem',
+                    borderRadius: "4px",
+                    fontSize: "1rem",
                     backgroundColor: colors.cardBg,
-                    color: colors.text
+                    color: colors.text,
                   }}
-                  placeholder={t('emailPlaceholder')}
+                  placeholder={t("emailPlaceholder")}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem', color: colors.text }}>
-                  {t('name')}
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "0.5rem",
+                    fontWeight: "bold",
+                    fontSize: "0.875rem",
+                    color: colors.text,
+                  }}
+                >
+                  {t("name")}
                 </label>
                 <input
                   type="text"
                   value={newInstructor.name}
-                  onChange={(e) => setNewInstructor({ ...newInstructor, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewInstructor({ ...newInstructor, name: e.target.value })
+                  }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
+                    width: "100%",
+                    padding: "0.5rem",
                     border: `1px solid ${colors.border}`,
-                    borderRadius: '4px',
-                    fontSize: '1rem',
+                    borderRadius: "4px",
+                    fontSize: "1rem",
                     backgroundColor: colors.cardBg,
-                    color: colors.text
+                    color: colors.text,
                   }}
-                  placeholder={t('fullNamePlaceholder')}
+                  placeholder={t("fullNamePlaceholder")}
                 />
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
                 <button
                   type="submit"
                   disabled={adding}
                   style={{
-                    padding: '0.5rem 1.5rem',
-                    backgroundColor: '#4caf50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: adding ? 'not-allowed' : 'pointer',
+                    padding: "0.5rem 1.5rem",
+                    backgroundColor: "#4caf50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: adding ? "not-allowed" : "pointer",
                     opacity: adding ? 0.6 : 1,
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
                   }}
                 >
                   {adding && <Spinner size={16} color="#ffffff" />}
-                  {adding ? t('loading') : t('createAndSendInvite')}
+                  {adding ? t("loading") : t("createAndSendInvite")}
                 </button>
               </div>
             </div>
@@ -740,7 +794,14 @@ export default function InstructorsPage() {
                             {t("edit")}
                           </button>
                           <button
-                            onClick={() => handleDeleteClick(instructor.id, instructor.user?.name || instructor.user?.email || 'Instructor')}
+                            onClick={() =>
+                              handleDeleteClick(
+                                instructor.id,
+                                instructor.user?.name ||
+                                  instructor.user?.email ||
+                                  "Instructor"
+                              )
+                            }
                             disabled={
                               editingId === instructor.id ||
                               deletingId === instructor.id
@@ -777,9 +838,11 @@ export default function InstructorsPage() {
                           colSpan={9}
                           style={{
                             padding: "1.5rem",
-                            backgroundColor: theme === 'dark' ? '#252525' : '#f9f9f9',
+                            backgroundColor:
+                              theme === "dark" ? "#252525" : "#f9f9f9",
                             borderBottom: `1px solid ${colors.border}`,
-                            transition: "background-color 0.3s, border-color 0.3s",
+                            transition:
+                              "background-color 0.3s, border-color 0.3s",
                           }}
                         >
                           <div
@@ -788,16 +851,21 @@ export default function InstructorsPage() {
                               backgroundColor: colors.cardBg,
                               borderRadius: "8px",
                               border: `1px solid ${colors.border}`,
-                              boxShadow: theme === 'light' ? '0 2px 4px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.3)',
+                              boxShadow:
+                                theme === "light"
+                                  ? "0 2px 4px rgba(0,0,0,0.1)"
+                                  : "0 2px 4px rgba(0,0,0,0.3)",
                             }}
                           >
-                            <h4 style={{ 
-                              marginTop: 0, 
-                              marginBottom: "1.5rem",
-                              fontSize: "1.125rem",
-                              fontWeight: "600",
-                              color: colors.text
-                            }}>
+                            <h4
+                              style={{
+                                marginTop: 0,
+                                marginBottom: "1.5rem",
+                                fontSize: "1.125rem",
+                                fontWeight: "600",
+                                color: colors.text,
+                              }}
+                            >
                               {t("editInstructor")}
                             </h4>
                             <div
@@ -845,13 +913,15 @@ export default function InstructorsPage() {
                                       color: colors.text,
                                       resize: "vertical",
                                       fontFamily: "inherit",
-                                      transition: "border-color 0.3s, background-color 0.3s",
+                                      transition:
+                                        "border-color 0.3s, background-color 0.3s",
                                     }}
                                     onFocus={(e) => {
                                       e.target.style.borderColor = "#1976d2";
                                     }}
                                     onBlur={(e) => {
-                                      e.target.style.borderColor = colors.border;
+                                      e.target.style.borderColor =
+                                        colors.border;
                                     }}
                                     placeholder={t("instructorBioPlaceholder")}
                                   />
@@ -870,7 +940,9 @@ export default function InstructorsPage() {
                                   </label>
                                   <input
                                     type="text"
-                                    value={editForm.specialties?.join(", ") || ""}
+                                    value={
+                                      editForm.specialties?.join(", ") || ""
+                                    }
                                     onChange={(e) =>
                                       handleSpecialtyChange(e.target.value)
                                     }
@@ -883,13 +955,15 @@ export default function InstructorsPage() {
                                       backgroundColor: colors.inputBg,
                                       color: colors.text,
                                       fontFamily: "inherit",
-                                      transition: "border-color 0.3s, background-color 0.3s",
+                                      transition:
+                                        "border-color 0.3s, background-color 0.3s",
                                     }}
                                     onFocus={(e) => {
                                       e.target.style.borderColor = "#1976d2";
                                     }}
                                     onBlur={(e) => {
-                                      e.target.style.borderColor = colors.border;
+                                      e.target.style.borderColor =
+                                        colors.border;
                                     }}
                                     placeholder={t("specialtiesPlaceholder")}
                                   />
@@ -924,16 +998,20 @@ export default function InstructorsPage() {
                                       color: colors.text,
                                       fontFamily: "inherit",
                                       cursor: "pointer",
-                                      transition: "border-color 0.3s, background-color 0.3s",
+                                      transition:
+                                        "border-color 0.3s, background-color 0.3s",
                                     }}
                                     onFocus={(e) => {
                                       e.target.style.borderColor = "#1976d2";
                                     }}
                                     onBlur={(e) => {
-                                      e.target.style.borderColor = colors.border;
+                                      e.target.style.borderColor =
+                                        colors.border;
                                     }}
                                   >
-                                    <option value="ACTIVE">{t("active")}</option>
+                                    <option value="ACTIVE">
+                                      {t("active")}
+                                    </option>
                                     <option value="INACTIVE">
                                       {t("inactive")}
                                     </option>
@@ -954,8 +1032,12 @@ export default function InstructorsPage() {
                                   style={{
                                     padding: "0.75rem 1.5rem",
                                     backgroundColor: saving
-                                      ? (theme === 'dark' ? '#555' : '#ccc')
-                                      : (theme === 'dark' ? '#666' : "#999"),
+                                      ? theme === "dark"
+                                        ? "#555"
+                                        : "#ccc"
+                                      : theme === "dark"
+                                      ? "#666"
+                                      : "#999",
                                     color: "white",
                                     border: "none",
                                     borderRadius: "6px",
@@ -964,17 +1046,20 @@ export default function InstructorsPage() {
                                     fontSize: "0.875rem",
                                     fontWeight: "600",
                                     whiteSpace: "nowrap",
-                                    transition: "background-color 0.3s, opacity 0.3s",
+                                    transition:
+                                      "background-color 0.3s, opacity 0.3s",
                                     minWidth: "100px",
                                   }}
                                   onMouseEnter={(e) => {
                                     if (!saving) {
-                                      e.currentTarget.style.backgroundColor = theme === 'dark' ? '#777' : "#888";
+                                      e.currentTarget.style.backgroundColor =
+                                        theme === "dark" ? "#777" : "#888";
                                     }
                                   }}
                                   onMouseLeave={(e) => {
                                     if (!saving) {
-                                      e.currentTarget.style.backgroundColor = theme === 'dark' ? '#666' : "#999";
+                                      e.currentTarget.style.backgroundColor =
+                                        theme === "dark" ? "#666" : "#999";
                                     }
                                   }}
                                 >
@@ -985,8 +1070,10 @@ export default function InstructorsPage() {
                                   disabled={saving}
                                   style={{
                                     padding: "0.75rem 1.5rem",
-                                    backgroundColor: saving 
-                                      ? (theme === 'dark' ? '#555' : '#ccc') 
+                                    backgroundColor: saving
+                                      ? theme === "dark"
+                                        ? "#555"
+                                        : "#ccc"
                                       : "#4caf50",
                                     color: "white",
                                     border: "none",
@@ -996,25 +1083,30 @@ export default function InstructorsPage() {
                                     fontSize: "0.875rem",
                                     fontWeight: "600",
                                     whiteSpace: "nowrap",
-                                    transition: "background-color 0.3s, opacity 0.3s",
+                                    transition:
+                                      "background-color 0.3s, opacity 0.3s",
                                     minWidth: "100px",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    gap: "0.5rem"
+                                    gap: "0.5rem",
                                   }}
                                   onMouseEnter={(e) => {
                                     if (!saving) {
-                                      e.currentTarget.style.backgroundColor = "#45a049";
+                                      e.currentTarget.style.backgroundColor =
+                                        "#45a049";
                                     }
                                   }}
                                   onMouseLeave={(e) => {
                                     if (!saving) {
-                                      e.currentTarget.style.backgroundColor = "#4caf50";
+                                      e.currentTarget.style.backgroundColor =
+                                        "#4caf50";
                                     }
                                   }}
                                 >
-                                  {saving && <Spinner size={16} color="#ffffff" />}
+                                  {saving && (
+                                    <Spinner size={16} color="#ffffff" />
+                                  )}
                                   {saving ? t("saving") : t("save")}
                                 </button>
                               </div>
@@ -1053,10 +1145,20 @@ export default function InstructorsPage() {
           confirmButtonStyle={{ backgroundColor: "#f44336" }}
         >
           <p>
-            {t("deleteConfirm")?.replace("{name}", deleteModal.instructorName) ||
-             `Are you sure you want to delete ${deleteModal.instructorName}?`}
+            {t("deleteConfirm")?.replace(
+              "{name}",
+              deleteModal.instructorName
+            ) ||
+              `Are you sure you want to delete ${deleteModal.instructorName}?`}
           </p>
-          <p style={{ fontSize: "0.875rem", color: "#f44336", marginTop: "0.5rem", fontWeight: "600" }}>
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "#f44336",
+              marginTop: "0.5rem",
+              fontWeight: "600",
+            }}
+          >
             {t("deleteWarning") || "This action cannot be undone."}
           </p>
         </Modal>
