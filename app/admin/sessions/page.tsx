@@ -25,6 +25,11 @@ interface Session {
       email: string
     }
   }
+  locationId?: string
+  location?: {
+    id: string
+    name: string
+  }
 }
 
 interface Class {
@@ -32,10 +37,17 @@ interface Class {
   name: string
 }
 
+interface Location {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [instructors, setInstructors] = useState<any[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -44,6 +56,7 @@ export default function SessionsPage() {
   const [formData, setFormData] = useState({
     classId: '',
     instructorId: '',
+    locationId: '',
     startTime: '',
     endTime: '',
     maxCapacity: '20',
@@ -83,20 +96,6 @@ export default function SessionsPage() {
   }
   
   const colors = themeColors[theme]
-
-  useEffect(() => {
-    const authToken = localStorage.getItem('supabase_auth_token')
-    
-    if (!authToken) {
-      router.push('/login')
-      return
-    }
-
-    setToken(authToken)
-    fetchSessions(authToken)
-    fetchClasses(authToken)
-    fetchInstructors(authToken)
-  }, [router])
 
   const fetchSessions = async (authToken: string) => {
     setLoading(true)
@@ -163,6 +162,47 @@ export default function SessionsPage() {
     }
   }
 
+  const fetchLocations = async (authToken: string) => {
+    try {
+      const response = await fetch('/api/locations', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        const locationsData = Array.isArray(result) ? result : []
+        setLocations(locationsData)
+        // Set default location if available (only on initial load)
+        const defaultLocation = locationsData.find((loc: Location) => loc.isDefault)
+        if (defaultLocation) {
+          setFormData(prev => ({ 
+            ...prev, 
+            locationId: prev.locationId || defaultLocation.id 
+          }))
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching locations:', err)
+    }
+  }
+
+  useEffect(() => {
+    const authToken = localStorage.getItem('supabase_auth_token')
+    
+    if (!authToken) {
+      router.push('/login')
+      return
+    }
+
+    setToken(authToken)
+    fetchSessions(authToken)
+    fetchClasses(authToken)
+    fetchInstructors(authToken)
+    fetchLocations(authToken)
+  }, [router])
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
   }
@@ -194,6 +234,7 @@ export default function SessionsPage() {
         body: JSON.stringify({
           classId: formData.classId,
           instructorId: formData.instructorId || undefined,
+          locationId: formData.locationId && formData.locationId.trim() ? formData.locationId : null,
           startTime: formData.startTime,
           endTime: formData.endTime,
           maxCapacity: parseInt(formData.maxCapacity)
@@ -207,7 +248,16 @@ export default function SessionsPage() {
 
       await fetchSessions(token)
       setShowForm(false)
-      setFormData({ classId: '', instructorId: '', startTime: '', endTime: '', maxCapacity: '20', status: 'SCHEDULED' })
+      const defaultLocation = locations.find(loc => loc.isDefault)
+      setFormData({ 
+        classId: '', 
+        instructorId: '', 
+        locationId: defaultLocation?.id || '', 
+        startTime: '', 
+        endTime: '', 
+        maxCapacity: '20', 
+        status: 'SCHEDULED' 
+      })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create session')
     } finally {
@@ -217,14 +267,21 @@ export default function SessionsPage() {
 
   const handleEdit = (session: Session) => {
     setEditingId(session.id)
-    setFormData({
+    // Get locationId from session - it might be in session.locationId or session.location?.id
+    const sessionLocationId = session.locationId || session.location?.id || ''
+    
+    // Ensure locations are loaded before setting form data
+    const formDataUpdate = {
       classId: session.classId,
       instructorId: session.instructorId || '',
+      locationId: sessionLocationId,
       startTime: formatDateTimeLocal(session.startTime),
       endTime: formatDateTimeLocal(session.endTime),
       maxCapacity: session.maxCapacity.toString(),
       status: session.status
-    })
+    }
+    
+    setFormData(formDataUpdate)
     setShowForm(true)
   }
 
@@ -245,6 +302,7 @@ export default function SessionsPage() {
         body: JSON.stringify({
           classId: formData.classId,
           instructorId: formData.instructorId || undefined,
+          locationId: formData.locationId && formData.locationId.trim() ? formData.locationId : null,
           startTime: formData.startTime,
           endTime: formData.endTime,
           maxCapacity: parseInt(formData.maxCapacity),
@@ -260,7 +318,16 @@ export default function SessionsPage() {
       await fetchSessions(token)
       setShowForm(false)
       setEditingId(null)
-      setFormData({ classId: '', instructorId: '', startTime: '', endTime: '', maxCapacity: '20', status: 'SCHEDULED' })
+      const defaultLocation = locations.find(loc => loc.isDefault)
+      setFormData({ 
+        classId: '', 
+        instructorId: '', 
+        locationId: defaultLocation?.id || '', 
+        startTime: '', 
+        endTime: '', 
+        maxCapacity: '20', 
+        status: 'SCHEDULED' 
+      })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update session')
     } finally {
@@ -401,6 +468,31 @@ export default function SessionsPage() {
                   <option value="">{t('selectClass')}</option>
                   {classes.map((cls) => (
                     <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: colors.text }}>
+                  {t('location')}
+                </label>
+                <select
+                  value={formData.locationId || ''}
+                  onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: `1px solid ${colors.inputBorder}`,
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                    backgroundColor: colors.inputBg,
+                    color: colors.text
+                  }}
+                >
+                  <option value="">{t('selectLocation')}</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name} {loc.isDefault ? `(${t('default')})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -576,6 +668,9 @@ export default function SessionsPage() {
                   {t('class')}
                 </th>
                 <th style={{ padding: '1rem', textAlign: 'left', borderBottom: `1px solid ${colors.border}`, color: colors.text }}>
+                  {t('location')}
+                </th>
+                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: `1px solid ${colors.border}`, color: colors.text }}>
                   {t('startTime')}
                 </th>
                 <th style={{ padding: '1rem', textAlign: 'left', borderBottom: `1px solid ${colors.border}`, color: colors.text }}>
@@ -603,6 +698,9 @@ export default function SessionsPage() {
                 >
                   <td style={{ padding: '1rem', color: colors.text }}>
                     <strong>{session.class?.name || 'N/A'}</strong>
+                  </td>
+                  <td style={{ padding: '1rem', color: colors.text }}>
+                    {session.location?.name || '-'}
                   </td>
                   <td style={{ padding: '1rem', color: colors.text }}>{formatDate(session.startTime)}</td>
                   <td style={{ padding: '1rem', color: colors.text }}>{formatDate(session.endTime)}</td>

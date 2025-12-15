@@ -194,7 +194,14 @@ export default function Modal({
             )}
             {showConfirm && onConfirm && (
               <button
-                onClick={handleConfirm}
+                onClick={async () => {
+                  try {
+                    await handleConfirm()
+                  } catch (error) {
+                    // Don't close modal on error - let the error handler manage the state
+                    console.error('Modal confirm error:', error)
+                  }
+                }}
                 style={{
                   padding: '0.75rem 1.5rem',
                   backgroundColor: '#4caf50',

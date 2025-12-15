@@ -3,17 +3,17 @@ import { requireAuth } from '@/lib/auth'
 import { mainBackendClient } from '@/lib/main-backend-client'
 
 /**
- * GET /api/bookings - Get all bookings for the tenant organization
- * POST /api/bookings - Create a new booking
+ * GET /api/locations - Get all locations for the tenant organization
+ * POST /api/locations - Create a new location
  */
 export async function GET(request: NextRequest) {
   try {
     await requireAuth(request)
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    const bookings = await mainBackendClient.getBookings(authToken)
+    const locations = await mainBackendClient.getLocations(authToken)
     
-    return NextResponse.json(bookings)
+    return NextResponse.json(locations)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       )
     }
-    console.error('Error fetching bookings:', error)
+    console.error('Error fetching locations:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -31,19 +31,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    await requireAuth(request)
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     const body = await request.json()
     
-    // Ensure the booking is for this organization
-    const bookingData = {
-      ...body,
-      organizationId: user.organizationId
-    }
+    const location = await mainBackendClient.createLocation(body, authToken)
     
-    const booking = await mainBackendClient.createBooking(bookingData, authToken)
-    
-    return NextResponse.json(booking, { status: 201 })
+    return NextResponse.json(location, { status: 201 })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -51,20 +45,13 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    console.error('Error creating booking:', error)
+    console.error('Error creating location:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
 }
-
-
-
-
-
-
-
 
 
 

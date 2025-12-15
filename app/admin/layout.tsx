@@ -94,6 +94,7 @@ export default function AdminLayout({
 
   const navItems = [
     { href: '/admin', label: t('organization') },
+    { href: '/admin/locations', label: t('locations') },
     { href: '/admin/classes', label: t('classes') },
     { href: '/admin/sessions', label: t('sessions') },
     { href: '/admin/bookings', label: t('bookings') },

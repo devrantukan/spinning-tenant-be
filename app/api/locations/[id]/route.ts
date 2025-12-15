@@ -3,9 +3,9 @@ import { requireAuth } from '@/lib/auth'
 import { mainBackendClient } from '@/lib/main-backend-client'
 
 /**
- * GET /api/bookings/[id] - Get a specific booking
- * PATCH /api/bookings/[id] - Update a booking
- * DELETE /api/bookings/[id] - Delete a booking
+ * GET /api/locations/[id] - Get a specific location
+ * PATCH /api/locations/[id] - Update a location
+ * DELETE /api/locations/[id] - Delete a location
  */
 export async function GET(
   request: NextRequest,
@@ -16,9 +16,9 @@ export async function GET(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    const booking = await mainBackendClient.getBooking(id, authToken)
+    const location = await mainBackendClient.getLocation(id, authToken)
     
-    return NextResponse.json(booking)
+    return NextResponse.json(location)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -26,10 +26,10 @@ export async function GET(
         { status: 401 }
       )
     }
-    console.error('Error fetching booking:', error)
+    console.error('Error fetching location:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: error.message || 'Internal server error' },
+      { status: error.status || 500 }
     )
   }
 }
@@ -44,9 +44,9 @@ export async function PATCH(
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     const body = await request.json()
     
-    const booking = await mainBackendClient.updateBooking(id, body, authToken)
+    const location = await mainBackendClient.updateLocation(id, body, authToken)
     
-    return NextResponse.json(booking)
+    return NextResponse.json(location)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -54,10 +54,10 @@ export async function PATCH(
         { status: 401 }
       )
     }
-    console.error('Error updating booking:', error)
+    console.error('Error updating location:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
-      { status: 500 }
+      { status: error.status || 500 }
     )
   }
 }
@@ -71,9 +71,9 @@ export async function DELETE(
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
-    await mainBackendClient.deleteBooking(id, authToken)
+    await mainBackendClient.deleteLocation(id, authToken)
     
-    return NextResponse.json({ message: 'Booking deleted successfully' })
+    return NextResponse.json({ message: 'Location deleted successfully' })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
@@ -81,20 +81,13 @@ export async function DELETE(
         { status: 401 }
       )
     }
-    console.error('Error deleting booking:', error)
+    console.error('Error deleting location:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
-      { status: 500 }
+      { status: error.status || 500 }
     )
   }
 }
-
-
-
-
-
-
-
 
 
 

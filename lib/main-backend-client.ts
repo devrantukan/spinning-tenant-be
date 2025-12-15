@@ -207,6 +207,87 @@ export const mainBackendClient = {
       authToken,
     }),
 
+  // Locations
+  getLocations: (authToken?: string) =>
+    requestMainBackend(`/api/locations`, { method: "GET", authToken }),
+
+  getLocation: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/locations/${id}`, { method: "GET", authToken }),
+
+  createLocation: (data: any, authToken?: string) =>
+    requestMainBackend(`/api/locations`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
+  updateLocation: (id: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/locations/${id}`, {
+      method: "PATCH",
+      body: data,
+      authToken,
+    }),
+
+  deleteLocation: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/locations/${id}`, { method: "DELETE", authToken }),
+
+  // Seat Layouts
+  getSeatLayouts: (locationId: string, authToken?: string) =>
+    requestMainBackend(`/api/locations/${locationId}/seat-layouts`, {
+      method: "GET",
+      authToken,
+    }),
+
+  getSeatLayout: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/seat-layouts/${id}`, { method: "GET", authToken }),
+
+  createSeatLayout: (locationId: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/locations/${locationId}/seat-layouts`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
+  updateSeatLayout: (id: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/seat-layouts/${id}`, {
+      method: "PATCH",
+      body: data,
+      authToken,
+    }),
+
+  deleteSeatLayout: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/seat-layouts/${id}`, {
+      method: "DELETE",
+      authToken,
+    }),
+
+  // Seats
+  getSeats: (seatLayoutId: string, authToken?: string) =>
+    requestMainBackend(`/api/seat-layouts/${seatLayoutId}/seats`, {
+      method: "GET",
+      authToken,
+    }),
+
+  getSeat: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/seats/${id}`, { method: "GET", authToken }),
+
+  createSeats: (seatLayoutId: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/seat-layouts/${seatLayoutId}/seats`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
+  updateSeat: (id: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/seats/${id}`, {
+      method: "PATCH",
+      body: data,
+      authToken,
+    }),
+
+  deleteSeat: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/seats/${id}`, { method: "DELETE", authToken }),
+
   // Classes
   getClasses: (authToken?: string) =>
     requestMainBackend(`/api/classes`, { method: "GET", authToken }),
