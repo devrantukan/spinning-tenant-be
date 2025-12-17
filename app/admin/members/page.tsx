@@ -75,6 +75,18 @@ export default function MembersPage() {
   const [invitationStatuses, setInvitationStatuses] = useState<
     Record<string, any>
   >({});
+  const [redeemPackageModal, setRedeemPackageModal] = useState<{
+    isOpen: boolean;
+    memberId: string;
+    memberName: string;
+  } | null>(null);
+  const [packages, setPackages] = useState<any[]>([]);
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [redemptionFormData, setRedemptionFormData] = useState({
+    packageId: "",
+    couponCode: "",
+  });
   const router = useRouter();
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -119,7 +131,24 @@ export default function MembersPage() {
 
     setToken(authToken);
     fetchMembers(authToken);
+    fetchPackages(authToken);
   }, [router]);
+
+  const fetchPackages = async (authToken: string) => {
+    try {
+      const response = await fetch("/api/packages", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setPackages(Array.isArray(result) ? result : []);
+      }
+    } catch (err) {
+      console.error("Error fetching packages:", err);
+    }
+  };
 
   // Initial users fetch and update when members change
   useEffect(() => {
@@ -1292,6 +1321,33 @@ export default function MembersPage() {
                       >
                         {t("viewHistory") || "History"}
                       </button>
+                      <button
+                        onClick={() => {
+                          setRedeemPackageModal({
+                            isOpen: true,
+                            memberId: member.id,
+                            memberName:
+                              member.user?.name ||
+                              member.user?.email ||
+                              "Member",
+                          });
+                          setRedemptionFormData({
+                            packageId: "",
+                            couponCode: "",
+                          });
+                        }}
+                        style={{
+                          padding: "0.25rem 0.75rem",
+                          backgroundColor: "#4caf50",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        {t("redeemPackage") || "Redeem Package"}
+                      </button>
                       {member.userId && (
                         <button
                           onClick={() =>
@@ -1707,6 +1763,205 @@ export default function MembersPage() {
           >
             {t("deleteWarning") || "This action cannot be undone."}
           </p>
+        </Modal>
+      )}
+
+      {/* Redeem Package Modal */}
+      {redeemPackageModal && (
+        <Modal
+          isOpen={redeemPackageModal.isOpen}
+          onClose={() => {
+            setRedeemPackageModal(null);
+            setRedemptionFormData({ packageId: "", couponCode: "" });
+          }}
+          title={t("redeemPackageForMember") || "Redeem Package for Member"}
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (
+                !token ||
+                !redeemPackageModal ||
+                !redemptionFormData.packageId
+              ) {
+                return;
+              }
+
+              setSaving(true);
+              try {
+                const response = await fetch("/api/packages/redeem", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    memberId: redeemPackageModal.memberId,
+                    packageId: redemptionFormData.packageId,
+                    couponCode: redemptionFormData.couponCode || undefined,
+                  }),
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+                await fetchMembers(token);
+                setRedeemPackageModal(null);
+                setRedemptionFormData({ packageId: "", couponCode: "" });
+                showToast(
+                  t("packageRedeemed") || "Package successfully redeemed",
+                  "success"
+                );
+              } catch (err: unknown) {
+                showToast(
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to redeem package",
+                  "error"
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+          >
+            <p style={{ color: colors.text, marginBottom: "1rem" }}>
+              {t("redeemPackageForMember") || "Redeem Package for"}:{" "}
+              <strong>{redeemPackageModal.memberName}</strong>
+            </p>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.5rem",
+                  fontWeight: "600",
+                  color: colors.text,
+                }}
+              >
+                {t("selectPackage") || "Select Package"}{" "}
+                <span style={{ color: colors.error }}>*</span>
+              </label>
+              <select
+                value={redemptionFormData.packageId}
+                onChange={(e) =>
+                  setRedemptionFormData({
+                    ...redemptionFormData,
+                    packageId: e.target.value,
+                  })
+                }
+                required
+                style={{
+                  width: "100%",
+                  padding: "0.5rem",
+                  border: `1px solid ${colors.inputBorder}`,
+                  borderRadius: "4px",
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                }}
+              >
+                <option value="">
+                  {t("selectPackage") || "Select a package"}
+                </option>
+                {packages
+                  .filter((pkg) => pkg.isActive)
+                  .map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {language === "tr" && pkg.nameTr ? pkg.nameTr : pkg.name}{" "}
+                      -{" "}
+                      {new Intl.NumberFormat("tr-TR", {
+                        style: "currency",
+                        currency: "TRY",
+                      }).format(pkg.price)}
+                      {pkg.credits &&
+                        ` (${pkg.credits} ${t("credits") || "credits"})`}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.5rem",
+                  fontWeight: "600",
+                  color: colors.text,
+                }}
+              >
+                {t("selectCoupon") || "Coupon Code"} (
+                {t("optional") || "Optional"})
+              </label>
+              <input
+                type="text"
+                value={redemptionFormData.couponCode}
+                onChange={(e) =>
+                  setRedemptionFormData({
+                    ...redemptionFormData,
+                    couponCode: e.target.value.toUpperCase(),
+                  })
+                }
+                style={{
+                  width: "100%",
+                  padding: "0.5rem",
+                  border: `1px solid ${colors.inputBorder}`,
+                  borderRadius: "4px",
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                }}
+                placeholder="e.g., SUMMER2024"
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                justifyContent: "flex-end",
+                marginTop: "1rem",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setRedeemPackageModal(null);
+                  setRedemptionFormData({ packageId: "", couponCode: "" });
+                }}
+                style={{
+                  padding: "0.5rem 1rem",
+                  backgroundColor: colors.border,
+                  color: colors.text,
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                {t("cancel") || "Cancel"}
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !redemptionFormData.packageId}
+                style={{
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#4caf50",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor:
+                    saving || !redemptionFormData.packageId
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity: saving || !redemptionFormData.packageId ? 0.6 : 1,
+                }}
+              >
+                {saving
+                  ? t("processing") || "Processing..."
+                  : t("redeemPackage") || "Redeem Package"}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

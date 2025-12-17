@@ -3,24 +3,24 @@ import { requireAuth } from "@/lib/auth";
 import { mainBackendClient } from "@/lib/main-backend-client";
 
 /**
- * GET /api/organization - Get the tenant organization details
- * PATCH /api/organization - Update the tenant organization details
+ * GET /api/coupons - Get all coupons for the tenant organization
+ * POST /api/coupons - Create a new coupon
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request);
+    await requireAuth(request);
     const authToken = request.headers
       .get("authorization")
       ?.replace("Bearer ", "");
 
-    const organization = await mainBackendClient.getOrganization(authToken);
+    const coupons = await mainBackendClient.getCoupons(authToken);
 
-    return NextResponse.json(organization);
+    return NextResponse.json(coupons);
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("Error fetching organization:", error);
+    console.error("Error fetching coupons:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request);
     const authToken = request.headers
@@ -36,30 +36,26 @@ export async function PATCH(request: NextRequest) {
       ?.replace("Bearer ", "");
     const body = await request.json();
 
-    // Use the tenant's organization ID
-    const organization = await mainBackendClient.updateOrganization(
-      user.organizationId,
-      body,
-      authToken
-    );
+    // Ensure the coupon is for this organization
+    const couponData = {
+      ...body,
+      organizationId: user.organizationId,
+    };
 
-    return NextResponse.json(organization);
+    const coupon = await mainBackendClient.createCoupon(couponData, authToken);
+
+    return NextResponse.json(coupon, { status: 201 });
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("Error updating organization:", error);
+    console.error("Error creating coupon:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
 
 
 

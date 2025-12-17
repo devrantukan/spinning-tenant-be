@@ -390,6 +390,86 @@ export const mainBackendClient = {
       authToken,
     }),
 
+  // Packages
+  getPackages: (authToken?: string) =>
+    requestMainBackend(`/api/packages`, { method: "GET", authToken }),
+
+  getPackage: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/packages/${id}`, { method: "GET", authToken }),
+
+  createPackage: (data: any, authToken?: string) =>
+    requestMainBackend(`/api/packages`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
+  updatePackage: (id: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/packages/${id}`, {
+      method: "PATCH",
+      body: data,
+      authToken,
+    }),
+
+  deletePackage: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/packages/${id}`, { method: "DELETE", authToken }),
+
+  // Coupons
+  getCoupons: (authToken?: string) =>
+    requestMainBackend(`/api/coupons`, { method: "GET", authToken }),
+
+  getCoupon: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/coupons/${id}`, { method: "GET", authToken }),
+
+  getCouponByCode: (code: string, authToken?: string) =>
+    requestMainBackend(`/api/coupons/code/${code}`, {
+      method: "GET",
+      authToken,
+    }),
+
+  createCoupon: (data: any, authToken?: string) =>
+    requestMainBackend(`/api/coupons`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
+  updateCoupon: (id: string, data: any, authToken?: string) =>
+    requestMainBackend(`/api/coupons/${id}`, {
+      method: "PATCH",
+      body: data,
+      authToken,
+    }),
+
+  deleteCoupon: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/coupons/${id}`, { method: "DELETE", authToken }),
+
+  // Package Redemptions
+  redeemPackage: (data: any, authToken?: string) =>
+    requestMainBackend(`/api/packages/redeem`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
+
+  getRedemptions: (authToken?: string) =>
+    requestMainBackend(`/api/redemptions`, { method: "GET", authToken }),
+
+  getRedemption: (id: string, authToken?: string) =>
+    requestMainBackend(`/api/redemptions/${id}`, { method: "GET", authToken }),
+
+  getMemberRedemptions: (memberId: string, authToken?: string) =>
+    requestMainBackend(`/api/members/${memberId}/redemptions`, {
+      method: "GET",
+      authToken,
+    }),
+
+  getAllAccessDailyUsage: (redemptionId: string, authToken?: string) =>
+    requestMainBackend(`/api/redemptions/${redemptionId}/all-access-usage`, {
+      method: "GET",
+      authToken,
+    }),
+
   // Instructors
   getInstructors: (authToken?: string) =>
     requestMainBackend(`/api/instructors`, { method: "GET", authToken }),

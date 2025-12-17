@@ -13,6 +13,9 @@ This is the tenant-specific backend application that integrates with the main ba
 - Authentication via Supabase JWT tokens
 - Automatic organization filtering
 - Proxy to main backend for all data operations
+- Hybrid package system (standard packages + coupons)
+- Package redemption tracking
+- All Access and Elite 30 support
 
 ## Setup
 
@@ -64,6 +67,31 @@ All endpoints require authentication via Bearer token in the Authorization heade
 - `GET /api/bookings/[id]` - Get a specific booking
 - `PATCH /api/bookings/[id]` - Update a booking
 - `DELETE /api/bookings/[id]` - Delete a booking
+
+### Packages
+
+- `GET /api/packages` - Get all packages for the organization
+- `POST /api/packages` - Create a new package
+- `GET /api/packages/[id]` - Get a specific package
+- `PATCH /api/packages/[id]` - Update a package
+- `DELETE /api/packages/[id]` - Delete a package
+- `POST /api/packages/redeem` - Redeem a package (direct or with coupon)
+
+### Coupons
+
+- `GET /api/coupons` - Get all coupons for the organization
+- `POST /api/coupons` - Create a new coupon
+- `GET /api/coupons/[id]` - Get a specific coupon
+- `GET /api/coupons/code/[code]` - Get a coupon by code
+- `PATCH /api/coupons/[id]` - Update a coupon
+- `DELETE /api/coupons/[id]` - Delete a coupon
+
+### Redemptions
+
+- `GET /api/redemptions` - Get all redemptions for the organization
+- `GET /api/redemptions/[id]` - Get a specific redemption
+- `GET /api/redemptions/[id]/all-access-usage` - Get All Access daily usage
+- `GET /api/members/[id]/redemptions` - Get all redemptions for a member
 
 ## Frontend Routes
 
