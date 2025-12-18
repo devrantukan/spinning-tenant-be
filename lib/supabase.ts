@@ -19,9 +19,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Server-side Supabase client with service role key (for admin operations)
 export const createServerClient = () => {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!serviceRoleKey) {
+  if (!serviceRoleKey || serviceRoleKey.trim() === "") {
+    console.warn(
+      "[SUPABASE] SUPABASE_SERVICE_ROLE_KEY is not set. Falling back to anon key (may have permission issues)."
+    );
     // For tenant backend, we might not need service role key
     // We'll use the anon key for token verification
     return createClient(supabaseUrl, supabaseAnonKey, {
@@ -32,6 +35,7 @@ export const createServerClient = () => {
     });
   }
 
+  console.log("[SUPABASE] Creating server client with service role key");
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
@@ -39,10 +43,3 @@ export const createServerClient = () => {
     },
   });
 };
-
-
-
-
-
-
-
