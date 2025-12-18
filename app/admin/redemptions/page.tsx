@@ -61,12 +61,12 @@ export default function RedemptionsPage() {
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
-    redemption: PendingRedemption | null;
+    redemption: PendingRedemption | Redemption | null;
     receiptFile: File | null;
   }>({ isOpen: false, redemption: null, receiptFile: null });
   const [rejectModal, setRejectModal] = useState<{
     isOpen: boolean;
-    redemption: PendingRedemption | null;
+    redemption: PendingRedemption | Redemption | null;
     reason: string;
   }>({ isOpen: false, redemption: null, reason: "" });
   const [processing, setProcessing] = useState(false);
@@ -250,6 +250,19 @@ export default function RedemptionsPage() {
 
     setProcessing(true);
     try {
+      // Check if this is a bank transfer redemption (has order_id)
+      const isBankTransfer = !!(rejectModal.redemption as any).order_id;
+
+      if (!isBankTransfer) {
+        showToast(
+          t("redemptionsRejectError") ||
+            "Can only reject pending bank transfer redemptions",
+          "error"
+        );
+        setProcessing(false);
+        return;
+      }
+
       const response = await fetch(
         `/api/pending-redemptions/${rejectModal.redemption.id}/reject`,
         {
@@ -402,9 +415,7 @@ export default function RedemptionsPage() {
           {
             // Count PENDING redemptions from main backend + bank transfer pending
             redemptions.filter((r) => r.status === "PENDING").length +
-              pendingRedemptions.filter(
-                (r) => r.status === "PENDING" || r.status === "pending"
-              ).length
+              pendingRedemptions.filter((r) => r.status === "PENDING").length
           }
           )
         </button>
@@ -445,7 +456,7 @@ export default function RedemptionsPage() {
 
             // Get bank transfer pending redemptions from Supabase
             const pendingBankTransfer = pendingRedemptions.filter(
-              (r) => r.status === "PENDING" || r.status === "pending"
+              (r) => r.status === "PENDING"
             );
 
             // Combine both sources
@@ -568,10 +579,13 @@ export default function RedemptionsPage() {
                           <div>
                             <div style={{ fontWeight: "500" }}>
                               {isBankTransfer
-                                ? (redemption as any).customer_name
-                                : redemption.member?.user?.name ||
-                                  redemption.member?.user?.email ||
-                                  redemption.memberId}
+                                ? (redemption as PendingRedemption)
+                                    .customer_name
+                                : (redemption as Redemption).member?.user
+                                    ?.name ||
+                                  (redemption as Redemption).member?.user
+                                    ?.email ||
+                                  (redemption as Redemption).memberId}
                             </div>
                             <div
                               style={{
@@ -580,8 +594,10 @@ export default function RedemptionsPage() {
                               }}
                             >
                               {isBankTransfer
-                                ? (redemption as any).customer_email
-                                : redemption.member?.user?.email || ""}
+                                ? (redemption as PendingRedemption)
+                                    .customer_email
+                                : (redemption as Redemption).member?.user
+                                    ?.email || ""}
                             </div>
                           </div>
                         </td>
@@ -593,24 +609,24 @@ export default function RedemptionsPage() {
                         >
                           <div style={{ fontWeight: "500" }}>
                             {isBankTransfer
-                              ? (redemption as any).package_name ||
-                                redemption.package_id
-                              : redemption.package?.name ||
-                                redemption.packageId}
+                              ? (redemption as PendingRedemption).package_id
+                              : (redemption as Redemption).package?.name ||
+                                (redemption as Redemption).packageId}
                           </div>
-                          {!isBankTransfer && redemption.package?.code && (
-                            <div
-                              style={{
-                                fontSize: "0.875rem",
-                                color: colors.textSecondary,
-                              }}
-                            >
-                              {redemption.package.code}
-                            </div>
-                          )}
+                          {!isBankTransfer &&
+                            (redemption as Redemption).package?.code && (
+                              <div
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: colors.textSecondary,
+                                }}
+                              >
+                                {(redemption as Redemption).package?.code}
+                              </div>
+                            )}
                           {(isBankTransfer
-                            ? redemption.coupon_code
-                            : redemption.coupon?.code) && (
+                            ? (redemption as PendingRedemption).coupon_code
+                            : (redemption as Redemption).couponId) && (
                             <div
                               style={{
                                 fontSize: "0.875rem",
@@ -620,8 +636,8 @@ export default function RedemptionsPage() {
                             >
                               {t("redemptionsCoupon") || "Coupon"}:{" "}
                               {isBankTransfer
-                                ? redemption.coupon_code
-                                : redemption.coupon?.code}
+                                ? (redemption as PendingRedemption).coupon_code
+                                : (redemption as Redemption).couponId}
                             </div>
                           )}
                         </td>
@@ -634,8 +650,8 @@ export default function RedemptionsPage() {
                           <strong>
                             {formatPrice(
                               isBankTransfer
-                                ? redemption.amount
-                                : redemption.finalPrice
+                                ? (redemption as PendingRedemption).amount
+                                : (redemption as Redemption).finalPrice
                             )}
                           </strong>
                         </td>
@@ -647,8 +663,8 @@ export default function RedemptionsPage() {
                         >
                           {formatDate(
                             isBankTransfer
-                              ? redemption.created_at
-                              : redemption.redeemedAt
+                              ? (redemption as PendingRedemption).created_at
+                              : (redemption as Redemption).redeemedAt
                           )}
                         </td>
                         <td
@@ -665,6 +681,7 @@ export default function RedemptionsPage() {
                                     setConfirmModal({
                                       isOpen: true,
                                       redemption,
+                                      receiptFile: null,
                                     })
                                   }
                                   disabled={processing}
@@ -712,6 +729,7 @@ export default function RedemptionsPage() {
                                   setConfirmModal({
                                     isOpen: true,
                                     redemption,
+                                    receiptFile: null,
                                   })
                                 }
                                 disabled={processing}

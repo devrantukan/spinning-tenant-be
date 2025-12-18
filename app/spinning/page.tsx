@@ -10,6 +10,7 @@ import Modal from "@/components/Modal";
 import {
   Package,
   PackageRedemption,
+  AllAccessDailyUsage,
   canUseAllAccessToday,
   isFriendPassValid,
 } from "@/lib/packages";
@@ -50,13 +51,6 @@ interface Session {
   };
 }
 
-interface AllAccessDailyUsage {
-  id: string;
-  usageDate: string;
-  bookingId?: string;
-  wasNoShow: boolean;
-}
-
 export default function SpinningPage() {
   const [member, setMember] = useState<Member | null>(null);
   const [packages, setPackages] = useState<Package[]>([]);
@@ -79,6 +73,9 @@ export default function SpinningPage() {
     amount: number;
     finalPrice: number;
   } | null>(null);
+  const [packagePaymentType, setPackagePaymentType] = useState<
+    "CREDIT_CARD" | "BANK_TRANSFER"
+  >("CREDIT_CARD");
   const [purchasing, setPurchasing] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -297,6 +294,7 @@ export default function SpinningPage() {
           memberId: member.id,
           packageId: selectedPackage.id,
           couponCode: couponCode.trim() || undefined,
+          paymentType: packagePaymentType,
         }),
       });
 
@@ -692,6 +690,7 @@ export default function SpinningPage() {
                   setShowPackageModal(true);
                   setCouponCode("");
                   setCouponDiscount(null);
+                  setPackagePaymentType("CREDIT_CARD");
                 }}
                 style={{
                   width: "100%",
@@ -862,6 +861,7 @@ export default function SpinningPage() {
             setSelectedPackage(null);
             setCouponCode("");
             setCouponDiscount(null);
+            setPackagePaymentType("CREDIT_CARD");
           }}
           title={t("purchasePackage") || "Purchase Package"}
         >
@@ -887,6 +887,72 @@ export default function SpinningPage() {
                   {formatPrice(couponDiscount.amount)}
                 </div>
               )}
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.5rem",
+                  fontWeight: "600",
+                  color: colors.text,
+                }}
+              >
+                {t("paymentMethod") || "Payment Method"}
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                  marginBottom: "1rem",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    padding: "0.5rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="packagePaymentType"
+                    value="CREDIT_CARD"
+                    checked={packagePaymentType === "CREDIT_CARD"}
+                    onChange={(e) =>
+                      setPackagePaymentType(
+                        e.target.value as "CREDIT_CARD" | "BANK_TRANSFER"
+                      )
+                    }
+                  />
+                  <span>{t("creditCard") || "Credit Card"}</span>
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    padding: "0.5rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="packagePaymentType"
+                    value="BANK_TRANSFER"
+                    checked={packagePaymentType === "BANK_TRANSFER"}
+                    onChange={(e) =>
+                      setPackagePaymentType(
+                        e.target.value as "CREDIT_CARD" | "BANK_TRANSFER"
+                      )
+                    }
+                  />
+                  <span>{t("bankTransfer") || "Bank Transfer"}</span>
+                </label>
+              </div>
             </div>
 
             <div>
@@ -946,6 +1012,7 @@ export default function SpinningPage() {
                   setSelectedPackage(null);
                   setCouponCode("");
                   setCouponDiscount(null);
+                  setPackagePaymentType("CREDIT_CARD");
                 }}
                 style={{
                   padding: "0.5rem 1rem",

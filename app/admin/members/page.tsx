@@ -89,7 +89,7 @@ export default function MembersPage() {
   });
   const router = useRouter();
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Theme colors
   const themeColors = {
@@ -104,6 +104,8 @@ export default function MembersPage() {
       textMuted: "#999",
       inputBg: "white",
       inputBorder: "#ccc",
+      error: "#dc3545",
+      success: "#28a745",
     },
     dark: {
       cardBg: "#1e1e1e",
@@ -116,6 +118,8 @@ export default function MembersPage() {
       textMuted: "#888",
       inputBg: "#2a2a2a",
       inputBorder: "#444",
+      error: "#dc3545",
+      success: "#28a745",
     },
   };
 

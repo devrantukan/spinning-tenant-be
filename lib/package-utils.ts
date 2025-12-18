@@ -150,7 +150,7 @@ export function calculateFriendPassExpiration(
 export function hasFriendPassBenefit(packageData: Package): boolean {
   return (
     packageData.type === "ELITE_30" &&
-    packageData.benefits?.includes("friend_pass")
+    (packageData.benefits?.includes("friend_pass") ?? false)
   );
 }
 
@@ -288,6 +288,3 @@ export function getSavingsDisplay(
     )} off)`,
   };
 }
-
-
-
