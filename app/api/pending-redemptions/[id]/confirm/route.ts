@@ -40,6 +40,41 @@ export async function POST(
       );
     }
 
+    // Handle receipt file upload if provided
+    let receiptUrl: string | null = null;
+    const formData = await request.formData();
+    const receiptFile = formData.get("receipt") as File | null;
+
+    if (receiptFile) {
+      try {
+        // Upload receipt to Supabase Storage
+        const fileExt = receiptFile.name.split(".").pop();
+        const fileName = `${id}-receipt-${Date.now()}.${fileExt}`;
+        const filePath = `redemptions/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("bankReceipts")
+          .upload(filePath, receiptFile, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Error uploading receipt:", uploadError);
+          // Don't fail the redemption if receipt upload fails
+        } else {
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from("bankReceipts")
+            .getPublicUrl(filePath);
+          receiptUrl = urlData.publicUrl;
+        }
+      } catch (uploadErr) {
+        console.error("Error processing receipt upload:", uploadErr);
+        // Continue without receipt if upload fails
+      }
+    }
+
     // Call main backend to actually redeem the package
     try {
       const redemptionResult = await mainBackendClient.redeemPackage(
@@ -58,6 +93,7 @@ export async function POST(
           status: "CONFIRMED",
           confirmed_at: new Date().toISOString(),
           redemption_id: redemptionResult.id,
+          receipt_url: receiptUrl,
         })
         .eq("id", id);
 

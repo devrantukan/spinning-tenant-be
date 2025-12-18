@@ -62,7 +62,8 @@ export default function RedemptionsPage() {
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     redemption: PendingRedemption | null;
-  }>({ isOpen: false, redemption: null });
+    receiptFile: File | null;
+  }>({ isOpen: false, redemption: null, receiptFile: null });
   const [rejectModal, setRejectModal] = useState<{
     isOpen: boolean;
     redemption: PendingRedemption | null;
@@ -123,27 +124,29 @@ export default function RedemptionsPage() {
     setError(null);
 
     try {
-      // Fetch pending redemptions
-      const pendingResponse = await fetch("/api/pending-redemptions", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      // Try to fetch bank transfer pending redemptions from Supabase (optional)
+      try {
+        const pendingResponse = await fetch("/api/pending-redemptions", {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
 
-      if (pendingResponse.ok) {
-        const pendingData = await pendingResponse.json();
-        console.log("Pending redemptions data:", pendingData);
-        setPendingRedemptions(Array.isArray(pendingData) ? pendingData : []);
-      } else {
-        const errorText = await pendingResponse.text();
-        console.error(
-          "Error fetching pending redemptions:",
-          pendingResponse.status,
-          errorText
+        if (pendingResponse.ok) {
+          const pendingData = await pendingResponse.json();
+          console.log("Bank transfer pending redemptions:", pendingData);
+          setPendingRedemptions(Array.isArray(pendingData) ? pendingData : []);
+        }
+      } catch (pendingErr) {
+        // Supabase table might not exist, that's okay - we'll use main backend data
+        console.log(
+          "Bank transfer pending redemptions not available:",
+          pendingErr
         );
+        setPendingRedemptions([]);
       }
 
-      // Fetch all redemptions
+      // Fetch all redemptions from main backend
       const redemptionsResponse = await fetch("/api/redemptions", {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -175,15 +178,45 @@ export default function RedemptionsPage() {
 
     setProcessing(true);
     try {
-      const response = await fetch(
-        `/api/pending-redemptions/${confirmModal.redemption.id}/confirm`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      // Check if this is a bank transfer redemption (has order_id) or main backend redemption
+      const isBankTransfer = !!(confirmModal.redemption as any).order_id;
+
+      let response;
+      if (isBankTransfer) {
+        // Bank transfer redemption - use pending-redemptions endpoint
+        const formData = new FormData();
+        if (confirmModal.receiptFile) {
+          formData.append("receipt", confirmModal.receiptFile);
         }
-      );
+
+        response = await fetch(
+          `/api/pending-redemptions/${confirmModal.redemption.id}/confirm`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          }
+        );
+      } else {
+        // Main backend redemption - approve via PATCH
+        const formData = new FormData();
+        if (confirmModal.receiptFile) {
+          formData.append("receipt", confirmModal.receiptFile);
+        }
+
+        response = await fetch(
+          `/api/redemptions/${confirmModal.redemption.id}/approve`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          }
+        );
+      }
 
       const data = await response.json();
 
@@ -192,7 +225,7 @@ export default function RedemptionsPage() {
           t("redemptionsConfirmSuccess") || "Package activated successfully",
           "success"
         );
-        setConfirmModal({ isOpen: false, redemption: null });
+        setConfirmModal({ isOpen: false, redemption: null, receiptFile: null });
         fetchData(token);
       } else {
         showToast(
@@ -367,9 +400,11 @@ export default function RedemptionsPage() {
         >
           {t("redemptionsPending") || "Pending"} (
           {
-            pendingRedemptions.filter(
-              (r) => r.status === "PENDING" || r.status === "pending"
-            ).length
+            // Count PENDING redemptions from main backend + bank transfer pending
+            redemptions.filter((r) => r.status === "PENDING").length +
+              pendingRedemptions.filter(
+                (r) => r.status === "PENDING" || r.status === "pending"
+              ).length
           }
           )
         </button>
@@ -403,35 +438,32 @@ export default function RedemptionsPage() {
           }}
         >
           {(() => {
-            const pendingItems = pendingRedemptions.filter(
+            // Get PENDING redemptions from main backend
+            const pendingFromBackend = redemptions.filter(
+              (r) => r.status === "PENDING"
+            );
+
+            // Get bank transfer pending redemptions from Supabase
+            const pendingBankTransfer = pendingRedemptions.filter(
               (r) => r.status === "PENDING" || r.status === "pending"
             );
-            console.log("Pending items to display:", pendingItems);
-            console.log("All pending redemptions:", pendingRedemptions);
 
-            if (pendingItems.length === 0) {
+            // Combine both sources
+            const allPendingItems = [
+              ...pendingFromBackend,
+              ...pendingBankTransfer,
+            ];
+
+            console.log("Pending items to display:", allPendingItems);
+            console.log("Pending from backend:", pendingFromBackend);
+            console.log("Pending bank transfer:", pendingBankTransfer);
+
+            if (allPendingItems.length === 0) {
               return (
                 <div style={{ padding: "2rem", textAlign: "center" }}>
                   <p style={{ color: colors.textSecondary }}>
                     {t("redemptionsNoPending") || "No pending redemptions"}
                   </p>
-                  {pendingRedemptions.length > 0 && (
-                    <p
-                      style={{
-                        color: colors.textMuted,
-                        fontSize: "0.875rem",
-                        marginTop: "0.5rem",
-                      }}
-                    >
-                      Found {pendingRedemptions.length} redemption(s) but none
-                      with PENDING status. Statuses:{" "}
-                      {[
-                        ...new Set(
-                          pendingRedemptions.map((r: any) => r.status)
-                        ),
-                      ].join(", ")}
-                    </p>
-                  )}
                 </div>
               );
             }
@@ -503,11 +535,11 @@ export default function RedemptionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingRedemptions
-                    .filter(
-                      (r) => r.status === "PENDING" || r.status === "pending"
-                    )
-                    .map((redemption, index) => (
+                  {allPendingItems.map((redemption, index) => {
+                    // Check if this is a bank transfer redemption (has order_id) or main backend redemption
+                    const isBankTransfer = !!(redemption as any).order_id;
+
+                    return (
                       <tr
                         key={redemption.id}
                         style={{
@@ -522,7 +554,9 @@ export default function RedemptionsPage() {
                           }}
                         >
                           <code style={{ fontSize: "0.9rem" }}>
-                            {redemption.order_id}
+                            {isBankTransfer
+                              ? (redemption as any).order_id
+                              : redemption.id.substring(0, 8) + "..."}
                           </code>
                         </td>
                         <td
@@ -533,7 +567,11 @@ export default function RedemptionsPage() {
                         >
                           <div>
                             <div style={{ fontWeight: "500" }}>
-                              {redemption.customer_name}
+                              {isBankTransfer
+                                ? (redemption as any).customer_name
+                                : redemption.member?.user?.name ||
+                                  redemption.member?.user?.email ||
+                                  redemption.memberId}
                             </div>
                             <div
                               style={{
@@ -541,7 +579,9 @@ export default function RedemptionsPage() {
                                 color: colors.textSecondary,
                               }}
                             >
-                              {redemption.customer_email}
+                              {isBankTransfer
+                                ? (redemption as any).customer_email
+                                : redemption.member?.user?.email || ""}
                             </div>
                           </div>
                         </td>
@@ -552,20 +592,25 @@ export default function RedemptionsPage() {
                           }}
                         >
                           <div style={{ fontWeight: "500" }}>
-                            {(redemption as any).package_name ||
-                              redemption.package_id}
+                            {isBankTransfer
+                              ? (redemption as any).package_name ||
+                                redemption.package_id
+                              : redemption.package?.name ||
+                                redemption.packageId}
                           </div>
-                          {(redemption as any).package_code && (
+                          {!isBankTransfer && redemption.package?.code && (
                             <div
                               style={{
                                 fontSize: "0.875rem",
                                 color: colors.textSecondary,
                               }}
                             >
-                              {(redemption as any).package_code}
+                              {redemption.package.code}
                             </div>
                           )}
-                          {redemption.coupon_code && (
+                          {(isBankTransfer
+                            ? redemption.coupon_code
+                            : redemption.coupon?.code) && (
                             <div
                               style={{
                                 fontSize: "0.875rem",
@@ -574,7 +619,9 @@ export default function RedemptionsPage() {
                               }}
                             >
                               {t("redemptionsCoupon") || "Coupon"}:{" "}
-                              {redemption.coupon_code}
+                              {isBankTransfer
+                                ? redemption.coupon_code
+                                : redemption.coupon?.code}
                             </div>
                           )}
                         </td>
@@ -584,7 +631,13 @@ export default function RedemptionsPage() {
                             borderBottom: `1px solid ${colors.border}`,
                           }}
                         >
-                          <strong>{formatPrice(redemption.amount)}</strong>
+                          <strong>
+                            {formatPrice(
+                              isBankTransfer
+                                ? redemption.amount
+                                : redemption.finalPrice
+                            )}
+                          </strong>
                         </td>
                         <td
                           style={{
@@ -592,7 +645,11 @@ export default function RedemptionsPage() {
                             borderBottom: `1px solid ${colors.border}`,
                           }}
                         >
-                          {formatDate(redemption.created_at)}
+                          {formatDate(
+                            isBankTransfer
+                              ? redemption.created_at
+                              : redemption.redeemedAt
+                          )}
                         </td>
                         <td
                           style={{
@@ -601,51 +658,83 @@ export default function RedemptionsPage() {
                           }}
                         >
                           <div style={{ display: "flex", gap: "0.5rem" }}>
-                            <button
-                              onClick={() =>
-                                setConfirmModal({
-                                  isOpen: true,
-                                  redemption,
-                                })
-                              }
-                              disabled={processing}
-                              style={{
-                                padding: "0.5rem 1rem",
-                                backgroundColor: colors.success,
-                                color: "white",
-                                border: "none",
-                                borderRadius: "4px",
-                                cursor: processing ? "not-allowed" : "pointer",
-                                fontSize: "0.875rem",
-                              }}
-                            >
-                              {t("redemptionsConfirm") || "Confirm"}
-                            </button>
-                            <button
-                              onClick={() =>
-                                setRejectModal({
-                                  isOpen: true,
-                                  redemption,
-                                  reason: "",
-                                })
-                              }
-                              disabled={processing}
-                              style={{
-                                padding: "0.5rem 1rem",
-                                backgroundColor: colors.error,
-                                color: "white",
-                                border: "none",
-                                borderRadius: "4px",
-                                cursor: processing ? "not-allowed" : "pointer",
-                                fontSize: "0.875rem",
-                              }}
-                            >
-                              {t("redemptionsReject") || "Reject"}
-                            </button>
+                            {isBankTransfer ? (
+                              <>
+                                <button
+                                  onClick={() =>
+                                    setConfirmModal({
+                                      isOpen: true,
+                                      redemption,
+                                    })
+                                  }
+                                  disabled={processing}
+                                  style={{
+                                    padding: "0.5rem 1rem",
+                                    backgroundColor: colors.success,
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: processing
+                                      ? "not-allowed"
+                                      : "pointer",
+                                    fontSize: "0.875rem",
+                                  }}
+                                >
+                                  {t("redemptionsConfirm") || "Confirm"}
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setRejectModal({
+                                      isOpen: true,
+                                      redemption,
+                                      reason: "",
+                                    })
+                                  }
+                                  disabled={processing}
+                                  style={{
+                                    padding: "0.5rem 1rem",
+                                    backgroundColor: colors.error,
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: processing
+                                      ? "not-allowed"
+                                      : "pointer",
+                                    fontSize: "0.875rem",
+                                  }}
+                                >
+                                  {t("redemptionsReject") || "Reject"}
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  setConfirmModal({
+                                    isOpen: true,
+                                    redemption,
+                                  })
+                                }
+                                disabled={processing}
+                                style={{
+                                  padding: "0.5rem 1rem",
+                                  backgroundColor: colors.success,
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  cursor: processing
+                                    ? "not-allowed"
+                                    : "pointer",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {t("redemptionsConfirm") || "Approve"}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
               </table>
             );
@@ -853,7 +942,13 @@ export default function RedemptionsPage() {
       {/* Confirm Modal */}
       <Modal
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false, redemption: null })}
+        onClose={() =>
+          setConfirmModal({
+            isOpen: false,
+            redemption: null,
+            receiptFile: null,
+          })
+        }
         title={t("redemptionsConfirmTitle") || "Confirm Package Activation"}
       >
         {confirmModal.redemption && (
@@ -862,19 +957,107 @@ export default function RedemptionsPage() {
               {t("redemptionsConfirmMessage") ||
                 "Are you sure you want to confirm this package purchase and activate it for the customer?"}
             </p>
-            <div style={{ marginBottom: "1rem" }}>
-              <strong>{t("redemptionsOrderId") || "Order ID"}:</strong>{" "}
-              {confirmModal.redemption.order_id}
+            {(() => {
+              const isBankTransfer = !!(confirmModal.redemption as any)
+                .order_id;
+              return (
+                <>
+                  {isBankTransfer ? (
+                    <>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>
+                          {t("redemptionsOrderId") || "Order ID"}:
+                        </strong>{" "}
+                        {(confirmModal.redemption as any).order_id}
+                      </div>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>
+                          {t("redemptionsCustomer") || "Customer"}:
+                        </strong>{" "}
+                        {(confirmModal.redemption as any).customer_name} (
+                        {(confirmModal.redemption as any).customer_email})
+                      </div>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>{t("redemptionsAmount") || "Amount"}:</strong>{" "}
+                        {formatPrice((confirmModal.redemption as any).amount)}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>{t("redemptionsId") || "ID"}:</strong>{" "}
+                        {confirmModal.redemption.id.substring(0, 8)}...
+                      </div>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>{t("redemptionsMember") || "Member"}:</strong>{" "}
+                        {(confirmModal.redemption as any).member?.user?.email ||
+                          (confirmModal.redemption as any).memberId}
+                      </div>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>{t("redemptionsPackage") || "Package"}:</strong>{" "}
+                        {(confirmModal.redemption as any).package?.name ||
+                          (confirmModal.redemption as any).packageId}
+                      </div>
+                      <div style={{ marginBottom: "1rem" }}>
+                        <strong>{t("redemptionsAmount") || "Amount"}:</strong>{" "}
+                        {formatPrice(
+                          (confirmModal.redemption as any).finalPrice ||
+                            (confirmModal.redemption as any).amount
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Receipt Upload Section */}
+            <div style={{ marginTop: "1.5rem", marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.5rem",
+                  fontWeight: "500",
+                  color: colors.text,
+                }}
+              >
+                {t("redemptionsReceiptUpload") || "Receipt Upload"} (
+                {t("optional") || "optional"}):
+              </label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setConfirmModal({
+                    ...confirmModal,
+                    receiptFile: file,
+                  });
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.5rem",
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                  border: `1px solid ${colors.inputBorder}`,
+                  borderRadius: "4px",
+                  fontSize: "0.875rem",
+                }}
+              />
+              {confirmModal.receiptFile && (
+                <p
+                  style={{
+                    marginTop: "0.5rem",
+                    fontSize: "0.875rem",
+                    color: colors.textSecondary,
+                  }}
+                >
+                  {t("redemptionsReceiptSelected") || "Selected"}:{" "}
+                  {confirmModal.receiptFile.name}
+                </p>
+              )}
             </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <strong>{t("redemptionsCustomer") || "Customer"}:</strong>{" "}
-              {confirmModal.redemption.customer_name} (
-              {confirmModal.redemption.customer_email})
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <strong>{t("redemptionsAmount") || "Amount"}:</strong>{" "}
-              {formatPrice(confirmModal.redemption.amount)}
-            </div>
+
             <div
               style={{
                 display: "flex",
@@ -884,7 +1067,11 @@ export default function RedemptionsPage() {
             >
               <button
                 onClick={() =>
-                  setConfirmModal({ isOpen: false, redemption: null })
+                  setConfirmModal({
+                    isOpen: false,
+                    redemption: null,
+                    receiptFile: null,
+                  })
                 }
                 disabled={processing}
                 style={{

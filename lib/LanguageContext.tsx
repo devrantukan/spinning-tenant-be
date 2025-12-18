@@ -272,6 +272,16 @@ const translations: Record<Language, Record<string, string>> = {
     pricePeriodEnd: "Price Period End",
     indefinite: "Indefinite",
     reason: "Reason",
+    // Bank Account
+    bankAccount: "Bank Account",
+    bankAccountDescription:
+      "Organization bank account information for payments and transactions",
+    bankAccountName: "Account Name",
+    bankName: "Bank Name",
+    bankAccountNumber: "Account Number",
+    bankIban: "IBAN",
+    bankSwift: "SWIFT/BIC Code",
+    bankBranch: "Branch",
     // Locations
     locations: "Locations",
     location: "Location",
@@ -416,6 +426,8 @@ const translations: Record<Language, Record<string, string>> = {
       "Are you sure you want to confirm this package purchase and activate it for the customer?",
     redemptionsConfirmSuccess: "Package activated successfully",
     redemptionsConfirmError: "Failed to confirm redemption",
+    redemptionsReceiptUpload: "Receipt Upload",
+    redemptionsReceiptSelected: "Selected",
     redemptionsRejectTitle: "Reject Package Purchase",
     redemptionsRejectMessage:
       "Are you sure you want to reject this package purchase?",
@@ -718,6 +730,16 @@ const translations: Record<Language, Record<string, string>> = {
     pricePeriodEnd: "Fiyat Dönemi Bitişi",
     indefinite: "Belirsiz",
     reason: "Neden",
+    // Bank Account
+    bankAccount: "Banka Hesabı",
+    bankAccountDescription:
+      "Ödemeler ve işlemler için organizasyon banka hesap bilgileri",
+    bankAccountName: "Hesap Adı",
+    bankName: "Banka Adı",
+    bankAccountNumber: "Hesap Numarası",
+    bankIban: "IBAN",
+    bankSwift: "SWIFT/BIC Kodu",
+    bankBranch: "Şube",
     // Locations
     locations: "Konumlar",
     location: "Konum",
@@ -862,6 +884,8 @@ const translations: Record<Language, Record<string, string>> = {
       "Bu paket satın alımını onaylayıp müşteri için aktifleştirmek istediğinizden emin misiniz?",
     redemptionsConfirmSuccess: "Paket başarıyla aktifleştirildi",
     redemptionsConfirmError: "Satın alım onaylanamadı",
+    redemptionsReceiptUpload: "Dekont Yükleme",
+    redemptionsReceiptSelected: "Seçildi",
     redemptionsRejectTitle: "Paket Satın Alımını Reddet",
     redemptionsRejectMessage:
       "Bu paket satın alımını reddetmek istediğinizden emin misiniz?",
@@ -875,7 +899,7 @@ const translations: Record<Language, Record<string, string>> = {
     redemptionsCredits: "Kredi",
     redemptionsStatus: "Durum",
     redemptionsOriginal: "Orijinal",
-    save: "Tasarruf",
+    save: "Kaydet",
     none: "Yok",
     details: "Detaylar",
     optional: "İsteğe Bağlı",

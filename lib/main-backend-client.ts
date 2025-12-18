@@ -470,6 +470,12 @@ export const mainBackendClient = {
       authToken,
     }),
 
+  approveRedemption: (redemptionId: string, authToken?: string) =>
+    requestMainBackend(`/api/redemptions/${redemptionId}`, {
+      method: "PATCH",
+      authToken,
+    }),
+
   // Instructors
   getInstructors: (authToken?: string) =>
     requestMainBackend(`/api/instructors`, { method: "GET", authToken }),

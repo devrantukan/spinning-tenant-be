@@ -346,3 +346,4 @@ INSERT INTO "Coupon" (
 --      FOREIGN KEY ("couponId") REFERENCES "Coupon"(id);
 
 
+
