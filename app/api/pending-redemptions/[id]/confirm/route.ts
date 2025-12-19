@@ -20,24 +20,32 @@ export async function POST(
       .get("authorization")
       ?.replace("Bearer ", "");
 
-    // Get the pending redemption
-    const { data: pendingRedemption, error: fetchError } = await supabase
-      .from("pending_redemptions")
-      .select("*")
-      .eq("id", id)
-      .single();
+    // Get the pending redemption from main backend
+    let pendingRedemption: any = null;
+    try {
+      pendingRedemption = await mainBackendClient.getRedemption(id, authToken);
 
-    if (fetchError || !pendingRedemption) {
+      if (!pendingRedemption || pendingRedemption.status !== "PENDING") {
+        return NextResponse.json(
+          {
+            error: `Redemption is not pending (status: ${
+              pendingRedemption?.status || "unknown"
+            })`,
+          },
+          { status: 400 }
+        );
+      }
+    } catch (fetchError: any) {
+      console.error("Error fetching pending redemption:", fetchError);
+      if (fetchError.status === 404) {
+        return NextResponse.json(
+          { error: "Pending redemption not found" },
+          { status: 404 }
+        );
+      }
       return NextResponse.json(
-        { error: "Pending redemption not found" },
-        { status: 404 }
-      );
-    }
-
-    if (pendingRedemption.status !== "PENDING") {
-      return NextResponse.json(
-        { error: `Redemption is already ${pendingRedemption.status}` },
-        { status: 400 }
+        { error: "Failed to fetch redemption" },
+        { status: 500 }
       );
     }
 
@@ -76,42 +84,43 @@ export async function POST(
       }
     }
 
-    // Call main backend to actually redeem the package
+    // Get member and package details for email
+    const memberId = pendingRedemption.memberId;
+    const packageId = pendingRedemption.packageId;
+
+    // Call main backend to approve the redemption
     try {
-      const redemptionResult = await mainBackendClient.redeemPackage(
-        {
-          memberId: pendingRedemption.member_id,
-          packageId: pendingRedemption.package_id,
-          couponCode: pendingRedemption.coupon_code || undefined,
-        },
+      const redemptionResult = await mainBackendClient.approveRedemption(
+        id,
         authToken
       );
 
-      // Update pending redemption status to CONFIRMED
-      const { error: updateError } = await supabase
-        .from("pending_redemptions")
-        .update({
-          status: "CONFIRMED",
-          confirmed_at: new Date().toISOString(),
-          redemption_id: redemptionResult.id,
-          receipt_url: receiptUrl,
-        })
-        .eq("id", id);
-
-      if (updateError) {
-        console.error("Error updating pending redemption:", updateError);
-        // Package was redeemed but status update failed - log but don't fail
-      }
+      // Note: Main backend handles the status update
 
       // Send confirmation email to the customer
       try {
+        console.log(
+          "[EMAIL] Starting email send process for redemption confirmation:",
+          {
+            customerEmail: pendingRedemption.customer_email,
+            redemptionId: id,
+          }
+        );
+
         // Get organization data for SMTP settings and email content
         let organization: any = null;
         try {
           organization = await mainBackendClient.getOrganization(authToken);
-        } catch (orgError) {
-          console.log(
-            "[EMAIL] Could not fetch organization data for email, using defaults"
+          console.log("[EMAIL] Organization data fetched:", {
+            hasSmtpHost: !!organization?.smtpHost,
+            hasSmtpUser: !!organization?.smtpUser,
+            hasSmtpPassword: !!organization?.smtpPassword,
+            language: organization?.language,
+          });
+        } catch (orgError: any) {
+          console.error(
+            "[EMAIL] Could not fetch organization data for email:",
+            orgError?.message || orgError
           );
         }
 
@@ -119,7 +128,7 @@ export async function POST(
         let packageData: any = null;
         try {
           packageData = await mainBackendClient.getPackage(
-            pendingRedemption.package_id,
+            packageId,
             authToken
           );
         } catch (packageError) {
@@ -129,20 +138,32 @@ export async function POST(
           );
         }
 
-        // Get member details for name
-        let memberName = pendingRedemption.customer_name || "";
+        // Get member details for name and email
+        let memberName = "";
+        let customerEmail = "";
         try {
-          const member = await mainBackendClient.getMember(
-            pendingRedemption.member_id,
-            authToken
-          );
+          const member = await mainBackendClient.getMember(memberId, authToken);
           if (member?.user?.name) {
             memberName = member.user.name;
           }
+          if (member?.user?.email) {
+            customerEmail = member.user.email;
+          }
         } catch (memberError) {
-          console.log(
-            "[EMAIL] Could not fetch member details, using customer_name from pending redemption"
-          );
+          console.log("[EMAIL] Could not fetch member details:", memberError);
+        }
+
+        // Fallback to redemption data if member fetch failed
+        if (!customerEmail) {
+          customerEmail = pendingRedemption.member?.user?.email || "";
+        }
+        if (!memberName) {
+          memberName = pendingRedemption.member?.user?.name || "";
+        }
+
+        if (!customerEmail) {
+          console.error("[EMAIL] No customer email found for redemption:", id);
+          throw new Error("Customer email not found");
         }
 
         // Determine language
@@ -273,10 +294,23 @@ export async function POST(
           </html>
         `;
 
+        // Validate email address
+        if (!customerEmail || !customerEmail.includes("@")) {
+          console.error("[EMAIL] Invalid email address:", customerEmail);
+          throw new Error(`Invalid email address: ${customerEmail}`);
+        }
+
+        console.log("[EMAIL] Attempting to send email:", {
+          to: customerEmail,
+          subject: t.subject,
+          hasOrganization: !!organization,
+          hasSmtpConfig: !!(organization?.smtpHost || process.env.SMTP_HOST),
+        });
+
         // Send email
         await sendEmail(
           {
-            to: pendingRedemption.customer_email,
+            to: customerEmail,
             subject: t.subject,
             html: emailHtml,
           },
@@ -284,12 +318,25 @@ export async function POST(
         );
 
         console.log(
-          "[EMAIL] Package activation confirmation email sent to:",
-          pendingRedemption.customer_email
+          "[EMAIL] ✓ Package activation confirmation email sent successfully to:",
+          customerEmail
         );
       } catch (emailError: any) {
-        // Don't fail the redemption if email fails
-        console.error("[EMAIL] Error sending confirmation email:", emailError);
+        // Don't fail the redemption if email fails, but log the error
+        console.error("[EMAIL] ✗ Error sending confirmation email:", {
+          error: emailError?.message || emailError,
+          stack: emailError?.stack,
+          customerEmail: customerEmail || "unknown",
+          redemptionId: id,
+          hasOrganization: !!organization,
+        });
+
+        // Log SMTP config status
+        if (emailError?.message?.includes("SMTP configuration not found")) {
+          console.error(
+            "[EMAIL] SMTP configuration issue - check organization settings or environment variables"
+          );
+        }
       }
 
       return NextResponse.json({

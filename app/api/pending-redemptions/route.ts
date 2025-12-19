@@ -15,10 +15,12 @@ export async function GET(request: NextRequest) {
       .get("authorization")
       ?.replace("Bearer ", "");
 
+    // Query package_redemptions table and filter for PENDING status
     const { data, error } = await supabase
-      .from("pending_redemptions")
+      .from("package_redemptions")
       .select("*")
-      .order("created_at", { ascending: false });
+      .eq("status", "PENDING")
+      .order("createdAt", { ascending: false });
 
     if (error) {
       console.error("Error fetching pending redemptions from Supabase:", {
@@ -31,13 +33,20 @@ export async function GET(request: NextRequest) {
       // If table doesn't exist or permission denied, return empty array instead of error
       // This allows the page to load even if the table hasn't been created yet
       if (
-        error.code === "42P01" || // relation does not exist
-        error.code === "42501" || // insufficient privilege
+        error.code === "42P01" || // relation does not exist (PostgreSQL)
+        error.code === "42501" || // insufficient privilege (PostgreSQL)
+        error.code === "PGRST205" || // table not found in schema cache (PostgREST)
         error.message?.includes("does not exist") ||
+        error.message?.includes("Could not find the table") ||
         error.message?.includes("permission denied")
       ) {
         console.warn(
-          "pending_redemptions table may not exist or lacks permissions. Returning empty array."
+          "package_redemptions table may not exist or lacks permissions. Returning empty array.",
+          {
+            errorCode: error.code,
+            errorMessage: error.message,
+            hint: error.hint,
+          }
         );
         return NextResponse.json([]);
       }
@@ -58,12 +67,34 @@ export async function GET(request: NextRequest) {
         const packages = await mainBackendClient.getPackages(authToken);
         const enrichedData = data.map((redemption: any) => {
           const packageInfo = Array.isArray(packages)
-            ? packages.find((p: any) => p.id === redemption.package_id)
+            ? packages.find(
+                (p: any) =>
+                  p.id === redemption.packageId ||
+                  p.id === redemption.package_id
+              )
             : null;
           return {
             ...redemption,
-            package_name: packageInfo?.name || redemption.package_id,
+            // Map package_redemptions fields to expected format
+            package_id: redemption.packageId || redemption.package_id,
+            package_name:
+              packageInfo?.name ||
+              redemption.packageId ||
+              redemption.package_id,
             package_code: packageInfo?.code,
+            // Map member fields
+            member_id: redemption.memberId || redemption.member_id,
+            // Map other fields
+            customer_email:
+              redemption.member?.user?.email || redemption.customer_email,
+            customer_name:
+              redemption.member?.user?.name || redemption.customer_name,
+            amount: redemption.finalPrice || redemption.amount,
+            payment_type:
+              redemption.paymentType ||
+              redemption.payment_type ||
+              "BANK_TRANSFER",
+            order_id: redemption.id, // Use redemption ID as order_id for bank transfers
           };
         });
         return NextResponse.json(enrichedData);
@@ -90,4 +121,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

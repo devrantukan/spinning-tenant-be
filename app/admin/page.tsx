@@ -37,13 +37,6 @@ interface OrganizationData {
   currency?: string | null;
   pricePeriodStart?: string | null;
   pricePeriodEnd?: string | null;
-  // Bank Account
-  bankAccountName?: string | null;
-  bankName?: string | null;
-  bankAccountNumber?: string | null;
-  bankIban?: string | null;
-  bankSwift?: string | null;
-  bankBranch?: string | null;
   _count?: {
     users: number;
     members: number;
@@ -66,7 +59,7 @@ export default function OrganizationPage() {
   const [token, setToken] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<OrganizationData>>({});
-  const [priceChangeReason, setPriceChangeReason] = useState("");
+  const [priceChangeReason, setPriceChangeReason] = useState('');
   const [viewingPriceHistory, setViewingPriceHistory] = useState(false);
   const [priceHistory, setPriceHistory] = useState<any[]>([]);
   const [loadingPriceHistory, setLoadingPriceHistory] = useState(false);
@@ -210,12 +203,8 @@ export default function OrganizationPage() {
       }
 
       // Include price change reason if credit price or currency is being changed
-      if (
-        (updateData.creditPrice !== undefined &&
-          updateData.creditPrice !== data?.creditPrice) ||
-        (updateData.currency !== undefined &&
-          updateData.currency !== data?.currency)
-      ) {
+      if ((updateData.creditPrice !== undefined && updateData.creditPrice !== data?.creditPrice) ||
+          (updateData.currency !== undefined && updateData.currency !== data?.currency)) {
         if (priceChangeReason) {
           updateData.priceChangeReason = priceChangeReason;
         }
@@ -238,21 +227,16 @@ export default function OrganizationPage() {
       const updated = await response.json();
       setData(updated);
       setIsEditing(false);
-      setPriceChangeReason("");
+      setPriceChangeReason('');
       fetchOrganization(token);
 
       // Show success toast
-      showToast(
-        t("organizationUpdatedSuccessfully") ||
-          "Organization updated successfully",
-        "success"
-      );
+      showToast(t("organizationUpdatedSuccessfully") || "Organization updated successfully", "success");
 
       // Dispatch event to update page title
       window.dispatchEvent(new CustomEvent("organization-updated"));
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : t("failedToUpdateOrganization");
+      const errorMessage = err instanceof Error ? err.message : t("failedToUpdateOrganization");
       setError(errorMessage);
       showToast(errorMessage, "error");
     } finally {
@@ -263,13 +247,13 @@ export default function OrganizationPage() {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditForm({});
-    setPriceChangeReason("");
+    setPriceChangeReason('');
     setError(null);
   };
 
   const fetchPriceHistory = async () => {
     if (!token) return;
-
+    
     setLoadingPriceHistory(true);
     try {
       const response = await fetch("/api/organization/price-history", {
@@ -345,7 +329,7 @@ export default function OrganizationPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "0.5rem",
+            gap: "0.5rem"
           }}
         >
           {loading ? (
@@ -353,9 +337,7 @@ export default function OrganizationPage() {
               <Spinner size={16} color="#ffffff" />
               <span>{t("loading")}</span>
             </>
-          ) : (
-            t("refresh")
-          )}
+          ) : t("refresh")}
         </button>
       </div>
 
@@ -1143,8 +1125,7 @@ export default function OrganizationPage() {
                           color: colors.text,
                         }}
                       >
-                        {data.language === "tr" ? t("turkish") : t("english")} (
-                        {data.language || "en"})
+                        {data.language === "tr" ? t("turkish") : t("english")} ({data.language || "en"})
                       </td>
                     </tr>
                   </tbody>
@@ -1197,11 +1178,8 @@ export default function OrganizationPage() {
                           color: colors.text,
                         }}
                       >
-                        {data.creditPrice !== null &&
-                        data.creditPrice !== undefined
-                          ? `${
-                              data.currency || "USD"
-                            } ${data.creditPrice.toFixed(2)}`
+                        {data.creditPrice !== null && data.creditPrice !== undefined
+                          ? `${data.currency || 'USD'} ${data.creditPrice.toFixed(2)}`
                           : "-"}
                       </td>
                     </tr>
@@ -1274,38 +1252,29 @@ export default function OrganizationPage() {
                     )}
                   </tbody>
                 </table>
-                {data.creditPrice !== null &&
-                  data.creditPrice !== undefined && (
-                    <div
+                {(data.creditPrice !== null && data.creditPrice !== undefined) && (
+                  <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+                    <button
+                      onClick={() => {
+                        setViewingPriceHistory(!viewingPriceHistory);
+                        if (!viewingPriceHistory) {
+                          fetchPriceHistory();
+                        }
+                      }}
                       style={{
-                        marginTop: "1rem",
-                        display: "flex",
-                        gap: "0.5rem",
+                        padding: "0.5rem 1rem",
+                        backgroundColor: theme === "dark" ? "#666" : "#999",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "0.875rem",
                       }}
                     >
-                      <button
-                        onClick={() => {
-                          setViewingPriceHistory(!viewingPriceHistory);
-                          if (!viewingPriceHistory) {
-                            fetchPriceHistory();
-                          }
-                        }}
-                        style={{
-                          padding: "0.5rem 1rem",
-                          backgroundColor: theme === "dark" ? "#666" : "#999",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {viewingPriceHistory
-                          ? t("hidePriceHistory") || "Hide Price History"
-                          : t("viewPriceHistory") || "View Price History"}
-                      </button>
-                    </div>
-                  )}
+                      {viewingPriceHistory ? (t("hidePriceHistory") || "Hide Price History") : (t("viewPriceHistory") || "View Price History")}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Price History */}
@@ -1463,11 +1432,7 @@ export default function OrganizationPage() {
                                   color: colors.text,
                                 }}
                               >
-                                {item.effectiveFrom
-                                  ? new Date(
-                                      item.effectiveFrom
-                                    ).toLocaleString()
-                                  : "-"}
+                                {item.effectiveFrom ? new Date(item.effectiveFrom).toLocaleString() : "-"}
                               </td>
                               <td
                                 style={{
@@ -1476,11 +1441,7 @@ export default function OrganizationPage() {
                                   color: colors.text,
                                 }}
                               >
-                                {item.effectiveUntil
-                                  ? new Date(
-                                      item.effectiveUntil
-                                    ).toLocaleString()
-                                  : t("indefinite") || "Indefinite"}
+                                {item.effectiveUntil ? new Date(item.effectiveUntil).toLocaleString() : (t("indefinite") || "Indefinite")}
                               </td>
                               <td
                                 style={{
@@ -1489,11 +1450,7 @@ export default function OrganizationPage() {
                                   color: colors.text,
                                 }}
                               >
-                                {item.creditPriceBefore !== null
-                                  ? `${
-                                      item.currencyBefore || ""
-                                    } ${item.creditPriceBefore.toFixed(2)}`
-                                  : "-"}
+                                {item.creditPriceBefore !== null ? `${item.currencyBefore || ''} ${item.creditPriceBefore.toFixed(2)}` : "-"}
                               </td>
                               <td
                                 style={{
@@ -1503,8 +1460,7 @@ export default function OrganizationPage() {
                                   fontWeight: "600",
                                 }}
                               >
-                                {item.currencyAfter}{" "}
-                                {item.creditPriceAfter.toFixed(2)}
+                                {item.currencyAfter} {item.creditPriceAfter.toFixed(2)}
                               </td>
                               <td
                                 style={{
@@ -1532,9 +1488,7 @@ export default function OrganizationPage() {
                                   color: colors.textSecondary,
                                 }}
                               >
-                                {item.changedBy?.name ||
-                                  item.changedBy?.email ||
-                                  "-"}
+                                {item.changedBy?.name || item.changedBy?.email || "-"}
                               </td>
                               <td
                                 style={{
@@ -1555,183 +1509,6 @@ export default function OrganizationPage() {
                       {t("noPriceHistory") || "No price history available."}
                     </p>
                   )}
-                </div>
-              )}
-
-              {/* Bank Account Display */}
-              {(data.bankAccountName ||
-                data.bankName ||
-                data.bankAccountNumber ||
-                data.bankIban ||
-                data.bankSwift ||
-                data.bankBranch) && (
-                <div
-                  style={{
-                    backgroundColor: colors.infoBg,
-                    padding: "1.5rem",
-                    borderRadius: "4px",
-                    border: `1px solid ${colors.border}`,
-                    transition: "background-color 0.3s, border-color 0.3s",
-                    marginBottom: "1.5rem",
-                  }}
-                >
-                  <h3
-                    style={{
-                      marginTop: 0,
-                      marginBottom: "1rem",
-                      color: colors.text,
-                    }}
-                  >
-                    {t("bankAccount") || "Bank Account"}
-                  </h3>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                    }}
-                  >
-                    <tbody>
-                      {data.bankAccountName && (
-                        <tr>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              fontWeight: "600",
-                              color: colors.text,
-                              width: "200px",
-                            }}
-                          >
-                            {t("bankAccountName") || "Account Name"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              color: colors.text,
-                            }}
-                          >
-                            {data.bankAccountName}
-                          </td>
-                        </tr>
-                      )}
-                      {data.bankName && (
-                        <tr>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              fontWeight: "600",
-                              color: colors.text,
-                            }}
-                          >
-                            {t("bankName") || "Bank Name"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              color: colors.text,
-                            }}
-                          >
-                            {data.bankName}
-                          </td>
-                        </tr>
-                      )}
-                      {data.bankAccountNumber && (
-                        <tr>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              fontWeight: "600",
-                              color: colors.text,
-                            }}
-                          >
-                            {t("bankAccountNumber") || "Account Number"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              color: colors.text,
-                            }}
-                          >
-                            {data.bankAccountNumber}
-                          </td>
-                        </tr>
-                      )}
-                      {data.bankIban && (
-                        <tr>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              fontWeight: "600",
-                              color: colors.text,
-                            }}
-                          >
-                            {t("bankIban") || "IBAN"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              color: colors.text,
-                            }}
-                          >
-                            {data.bankIban}
-                          </td>
-                        </tr>
-                      )}
-                      {data.bankSwift && (
-                        <tr>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              fontWeight: "600",
-                              color: colors.text,
-                            }}
-                          >
-                            {t("bankSwift") || "SWIFT/BIC"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              color: colors.text,
-                            }}
-                          >
-                            {data.bankSwift}
-                          </td>
-                        </tr>
-                      )}
-                      {data.bankBranch && (
-                        <tr>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              fontWeight: "600",
-                              color: colors.text,
-                            }}
-                          >
-                            {t("bankBranch") || "Branch"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: `1px solid ${colors.border}`,
-                              color: colors.text,
-                            }}
-                          >
-                            {data.bankBranch}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
                 </div>
               )}
 
@@ -2222,14 +1999,7 @@ export default function OrganizationPage() {
                   >
                     {t("socialMediaLinks")}
                   </h3>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(250px, 1fr))",
-                      gap: "1rem",
-                    }}
-                  >
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem" }}>
                     <div>
                       <label
                         style={{
@@ -2853,18 +2623,11 @@ export default function OrganizationPage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={
-                          editForm.creditPrice !== null &&
-                          editForm.creditPrice !== undefined
-                            ? editForm.creditPrice
-                            : ""
-                        }
+                        value={editForm.creditPrice !== null && editForm.creditPrice !== undefined ? editForm.creditPrice : ''}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
-                            creditPrice: e.target.value
-                              ? parseFloat(e.target.value)
-                              : null,
+                            creditPrice: e.target.value ? parseFloat(e.target.value) : null,
                           })
                         }
                         placeholder="0.00"
@@ -2918,8 +2681,7 @@ export default function OrganizationPage() {
                         <option value="GBP">GBP (£)</option>
                       </select>
                     </div>
-                    {(editForm.creditPrice !== data?.creditPrice ||
-                      editForm.currency !== data?.currency) && (
+                    {(editForm.creditPrice !== data?.creditPrice || editForm.currency !== data?.currency) && (
                       <div>
                         <label
                           style={{
@@ -2929,18 +2691,13 @@ export default function OrganizationPage() {
                             color: colors.text,
                           }}
                         >
-                          {`${
-                            t("priceChangeReason") || "Price Change Reason"
-                          } (${t("optional") || "optional"})`}
+                          {`${t("priceChangeReason") || "Price Change Reason"} (${t("optional") || "optional"})`}
                         </label>
                         <input
                           type="text"
                           value={priceChangeReason}
                           onChange={(e) => setPriceChangeReason(e.target.value)}
-                          placeholder={
-                            t("priceChangeReasonPlaceholder") ||
-                            "e.g., Seasonal adjustment"
-                          }
+                          placeholder={t("priceChangeReasonPlaceholder") || "e.g., Seasonal adjustment"}
                           style={{
                             width: "100%",
                             padding: "0.5rem",
@@ -2957,278 +2714,41 @@ export default function OrganizationPage() {
                     )}
                   </div>
                 </div>
-
-                {/* Bank Account Section */}
-                <div
-                  style={{
-                    backgroundColor: colors.infoBg,
-                    padding: "1.5rem",
-                    borderRadius: "4px",
-                    border: `1px solid ${colors.border}`,
-                    transition: "background-color 0.3s, border-color 0.3s",
-                  }}
-                >
-                  <h3
-                    style={{
-                      marginTop: 0,
-                      marginBottom: "1rem",
-                      color: colors.text,
-                    }}
-                  >
-                    {t("bankAccount") || "Bank Account"}
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "0.875rem",
-                      color: colors.textSecondary,
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    {t("bankAccountDescription") ||
-                      "Organization bank account information for payments and transactions"}
-                  </p>
-                  <div style={{ display: "grid", gap: "1rem" }}>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {t("bankAccountName") || "Account Name"}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.bankAccountName || ""}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            bankAccountName: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="Organization Name"
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.cardBg,
-                          color: colors.text,
-                          transition:
-                            "background-color 0.3s, border-color 0.3s, color 0.3s",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {t("bankName") || "Bank Name"}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.bankName || ""}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            bankName: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="e.g., Ziraat Bankası"
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.cardBg,
-                          color: colors.text,
-                          transition:
-                            "background-color 0.3s, border-color 0.3s, color 0.3s",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {t("bankAccountNumber") || "Account Number"}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.bankAccountNumber || ""}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            bankAccountNumber: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="1234567890"
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.cardBg,
-                          color: colors.text,
-                          transition:
-                            "background-color 0.3s, border-color 0.3s, color 0.3s",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {t("bankIban") || "IBAN"}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.bankIban || ""}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            bankIban: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="TR33 0006 1005 1978 6457 8413 26"
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.cardBg,
-                          color: colors.text,
-                          transition:
-                            "background-color 0.3s, border-color 0.3s, color 0.3s",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {t("bankSwift") || "SWIFT/BIC Code"}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.bankSwift || ""}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            bankSwift: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="TCZBTR2A"
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.cardBg,
-                          color: colors.text,
-                          transition:
-                            "background-color 0.3s, border-color 0.3s, color 0.3s",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {t("bankBranch") || "Branch"}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.bankBranch || ""}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            bankBranch: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="Branch name or code"
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.cardBg,
-                          color: colors.text,
-                          transition:
-                            "background-color 0.3s, border-color 0.3s, color 0.3s",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
               </div>
               <div
                 style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}
               >
-                <button
-                  onClick={handleSaveOrganization}
-                  disabled={saving}
-                  style={{
-                    padding: "0.75rem 1.5rem",
-                    backgroundColor: "#4caf50",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.6 : 1,
-                  }}
-                >
-                  {saving ? t("saving") : t("save")}
-                </button>
-                <button
-                  onClick={handleCancelEdit}
-                  disabled={saving}
-                  style={{
-                    padding: "0.75rem 1.5rem",
-                    backgroundColor: "#666",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.6 : 1,
-                  }}
-                >
-                  {t("cancel")}
-                </button>
-              </div>
+                  <button
+                    onClick={handleSaveOrganization}
+                    disabled={saving}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      backgroundColor: "#4caf50",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    {saving ? t("saving") : t("save")}
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      backgroundColor: "#666",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    {t("cancel")}
+                  </button>
+                </div>
             </div>
           )}
         </div>

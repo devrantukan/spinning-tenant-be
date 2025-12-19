@@ -86,15 +86,39 @@ export async function sendEmail(
   options: EmailOptions,
   organization?: OrganizationData | null
 ): Promise<void> {
+  console.log("[EMAIL] sendEmail called:", {
+    to: options.to,
+    subject: options.subject,
+    hasOrganization: !!organization,
+  });
+
   const smtpConfig = getSMTPConfig(organization);
 
   if (!smtpConfig) {
     console.error("[EMAIL] SMTP configuration not found. Email not sent.");
+    console.error("[EMAIL] Organization data:", {
+      hasSmtpHost: !!organization?.smtpHost,
+      hasSmtpUser: !!organization?.smtpUser,
+      hasSmtpPassword: !!organization?.smtpPassword,
+      envHasSmtpHost: !!process.env.SMTP_HOST,
+      envHasSmtpUser: !!process.env.SMTP_USER,
+      envHasSmtpPassword: !!process.env.SMTP_PASSWORD,
+    });
     console.error(
       "[EMAIL] Please configure SMTP settings in organization settings or environment variables."
     );
     throw new Error("SMTP configuration not found");
   }
+
+  console.log("[EMAIL] SMTP config found:", {
+    host: smtpConfig.host,
+    port: smtpConfig.port,
+    secure: smtpConfig.secure,
+    fromEmail: smtpConfig.fromEmail,
+    fromName: smtpConfig.fromName,
+    hasUser: !!smtpConfig.user,
+    hasPassword: !!smtpConfig.password,
+  });
 
   try {
     const transporter = nodemailer.createTransport({
@@ -107,6 +131,10 @@ export async function sendEmail(
       },
     });
 
+    // Verify connection
+    await transporter.verify();
+    console.log("[EMAIL] SMTP connection verified successfully");
+
     const mailOptions = {
       from: `"${smtpConfig.fromName}" <${smtpConfig.fromEmail}>`,
       to: options.to,
@@ -115,17 +143,29 @@ export async function sendEmail(
       html: options.html,
     };
 
+    console.log("[EMAIL] Sending email:", {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+    });
+
     const info = await transporter.sendMail(mailOptions);
-    console.log("[EMAIL] Email sent successfully:", {
+    console.log("[EMAIL] ✓ Email sent successfully:", {
       to: options.to,
       subject: options.subject,
       messageId: info.messageId,
+      response: info.response,
     });
   } catch (error: any) {
-    console.error("[EMAIL] Error sending email:", {
+    console.error("[EMAIL] ✗ Error sending email:", {
       to: options.to,
       subject: options.subject,
       error: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+      stack: error.stack,
     });
     throw error;
   }
