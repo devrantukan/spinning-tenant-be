@@ -15,12 +15,20 @@ import { mainBackendClient } from "@/lib/main-backend-client";
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
-    const authToken = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    // Sessions should be publicly viewable - auth is optional
+    // Try to get auth token if available, but don't require it
+    let authToken: string | undefined = undefined;
+    try {
+      await requireAuth(request);
+      authToken = request.headers.get("authorization")?.replace("Bearer ", "");
+    } catch (authError) {
+      // Auth is optional for viewing sessions - continue without auth
+      console.log(
+        "[SESSIONS] No auth token provided - fetching sessions as public"
+      );
+    }
 
-    // Get all sessions from main backend
+    // Get all sessions from main backend (auth token is optional)
     const allSessions = await mainBackendClient.getSessions(authToken);
 
     // Get query parameters
@@ -188,9 +196,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
