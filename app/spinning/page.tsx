@@ -32,12 +32,15 @@ interface Session {
   id: string;
   startTime: string;
   endTime: string;
+  duration?: number;
+  amPm?: string;
   maxCapacity: number;
   currentBookings: number;
   status: string;
   class?: {
     id: string;
     name: string;
+    musicGenre?: string;
   };
   instructor?: {
     user: {

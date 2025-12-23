@@ -102,7 +102,22 @@ async function requestMainBackend(
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
+          errorMessage =
+            errorData.error ||
+            errorData.message ||
+            errorData.details ||
+            errorMessage;
+          // Log full error data for debugging
+          console.error(
+            `[MAIN-BE-CLIENT] Main backend error response for ${endpoint}:`,
+            {
+              status: response.status,
+              statusText: response.statusText,
+              errorData: errorData,
+              url: finalUrl,
+              fullResponse: JSON.stringify(errorData, null, 2),
+            }
+          );
         } else {
           // Try to read as text if not JSON, but limit size for HTML errors
           const text = await response.text();
@@ -118,6 +133,10 @@ async function requestMainBackend(
               // Limit text length to avoid huge error messages
               errorMessage =
                 text.length > 500 ? text.substring(0, 500) + "..." : text;
+              errorData = {
+                error: errorMessage,
+                rawText: text.substring(0, 500),
+              };
             }
           }
         }

@@ -98,6 +98,10 @@ export async function POST(
       // Note: Main backend handles the status update
 
       // Send confirmation email to the customer
+      // Declare variables outside try block so they're accessible in catch block
+      let customerEmail = "";
+      let organization: any = null;
+
       try {
         console.log(
           "[EMAIL] Starting email send process for redemption confirmation:",
@@ -108,7 +112,6 @@ export async function POST(
         );
 
         // Get organization data for SMTP settings and email content
-        let organization: any = null;
         try {
           organization = await mainBackendClient.getOrganization(authToken);
           console.log("[EMAIL] Organization data fetched:", {
@@ -140,7 +143,6 @@ export async function POST(
 
         // Get member details for name and email
         let memberName = "";
-        let customerEmail = "";
         try {
           const member = await mainBackendClient.getMember(memberId, authToken);
           if (member?.user?.name) {

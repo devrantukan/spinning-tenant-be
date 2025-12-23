@@ -946,6 +946,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     // Save to localStorage
     localStorage.setItem("language", language);
 
+    // Update document lang attribute for date/time pickers and accessibility
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = language;
+    }
+
     // Dispatch custom event so components can listen
     window.dispatchEvent(
       new CustomEvent("language-change", { detail: language })
