@@ -102,6 +102,7 @@ export default function SessionsPage() {
   const [repeatInterval, setRepeatInterval] = useState<"daily" | "weekly">(
     "weekly"
   );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
   const { theme } = useTheme();
   const { t, language } = useLanguage();
@@ -555,27 +556,56 @@ export default function SessionsPage() {
     }
 
     try {
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          classId: formData.classId,
-          instructorId: formData.instructorId,
-          locationId:
-            formData.locationId && formData.locationId.trim()
-              ? formData.locationId
-              : null,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-        }),
-      });
+      // Calculate session dates for repeat
+      const baseStartTime = new Date(formData.startTime);
+      const baseEndTime = new Date(formData.endTime);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      const sessionsToCreate = enableRepeat ? repeatCount : 1;
+
+      for (let i = 0; i < sessionsToCreate; i++) {
+        // Calculate the date offset based on interval
+        const startTime = new Date(baseStartTime);
+        const endTime = new Date(baseEndTime);
+
+        if (i > 0) {
+          if (repeatInterval === "daily") {
+            startTime.setDate(startTime.getDate() + i);
+            endTime.setDate(endTime.getDate() + i);
+          } else if (repeatInterval === "weekly") {
+            startTime.setDate(startTime.getDate() + i * 7);
+            endTime.setDate(endTime.getDate() + i * 7);
+          }
+        }
+
+        const response = await fetch("/api/sessions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            classId: formData.classId,
+            instructorId: formData.instructorId,
+            locationId:
+              formData.locationId && formData.locationId.trim()
+                ? formData.locationId
+                : null,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error ||
+              `Failed to create session ${i + 1}/${sessionsToCreate}: HTTP ${
+                response.status
+              }`
+          );
+        }
+
+        await response.json();
       }
 
       await fetchSessions(token);
@@ -592,6 +622,9 @@ export default function SessionsPage() {
       setSelectedStartDate(null);
       setSelectedEndDate(null);
       setCalculatedMaxCapacity(null);
+      setEnableRepeat(false);
+      setRepeatCount(4);
+      setRepeatInterval("weekly");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create session");
     } finally {
@@ -708,8 +741,57 @@ export default function SessionsPage() {
       endTime: "",
       status: "SCHEDULED",
     });
+    setSelectedStartDate(null);
+    setSelectedEndDate(null);
     setCalculatedMaxCapacity(null);
+    setEnableRepeat(false);
+    setRepeatCount(4);
+    setRepeatInterval("weekly");
     setError(null);
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    if (!token) return;
+
+    const sessionToDelete = sessions.find((s) => s.id === sessionId);
+    const sessionLabel = sessionToDelete
+      ? `${sessionToDelete.class?.name || "Session"} - ${formatDate(
+          sessionToDelete.startTime
+        )}`
+      : "Session";
+
+    if (
+      !window.confirm(
+        language === "tr"
+          ? `${sessionLabel} oturumunu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`
+          : `Are you sure you want to delete ${sessionLabel}? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(sessionId);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      await fetchSessions(token);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete session");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const refreshData = () => {
@@ -1233,6 +1315,127 @@ export default function SessionsPage() {
                 </select>
               </div>
             )}
+            {!editingId && (
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  padding: "1rem",
+                  backgroundColor: colors.theadBg,
+                  borderRadius: "4px",
+                  border: `1px solid ${colors.border}`,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: enableRepeat ? "1rem" : "0",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={enableRepeat}
+                    onChange={(e) => setEnableRepeat(e.target.checked)}
+                    style={{
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      cursor: "pointer",
+                    }}
+                  />
+                  <span style={{ fontWeight: "600", color: colors.text }}>
+                    {language === "tr"
+                      ? "Oturumları tekrarla"
+                      : "Repeat Sessions"}
+                  </span>
+                </label>
+                {enableRepeat && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "1rem",
+                      marginTop: "1rem",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {language === "tr" ? "Tekrar Sayısı" : "Repeat Count"}
+                      </label>
+                      <input
+                        type="number"
+                        min="2"
+                        max="52"
+                        value={repeatCount}
+                        onChange={(e) =>
+                          setRepeatCount(
+                            Math.max(
+                              2,
+                              Math.min(52, parseInt(e.target.value) || 2)
+                            )
+                          )
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.inputBorder}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.inputBg,
+                          color: colors.text,
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {language === "tr"
+                          ? "Tekrar Aralığı"
+                          : "Repeat Interval"}
+                      </label>
+                      <select
+                        value={repeatInterval}
+                        onChange={(e) =>
+                          setRepeatInterval(
+                            e.target.value as "daily" | "weekly"
+                          )
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.inputBorder}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.inputBg,
+                          color: colors.text,
+                        }}
+                      >
+                        <option value="daily">
+                          {language === "tr" ? "Günlük" : "Daily"}
+                        </option>
+                        <option value="weekly">
+                          {language === "tr" ? "Haftalık" : "Weekly"}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <button
               type="submit"
               disabled={saving}
@@ -1257,6 +1460,10 @@ export default function SessionsPage() {
                 ? t("saving")
                 : editingId
                 ? t("save")
+                : enableRepeat
+                ? `${t("createSession")} (${repeatCount} ${
+                    language === "tr" ? "oturum" : "sessions"
+                  })`
                 : t("createSession")}
             </button>
           </form>
@@ -1508,20 +1715,54 @@ export default function SessionsPage() {
                     </span>
                   </td>
                   <td style={{ padding: "1rem" }}>
-                    <button
-                      onClick={() => handleEdit(session)}
+                    <div
                       style={{
-                        padding: "0.25rem 0.75rem",
-                        backgroundColor: "#1976d2",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "0.875rem",
+                        display: "flex",
+                        gap: "0.5rem",
+                        alignItems: "center",
                       }}
                     >
-                      {t("edit")}
-                    </button>
+                      <button
+                        onClick={() => handleEdit(session)}
+                        style={{
+                          padding: "0.25rem 0.75rem",
+                          backgroundColor: "#1976d2",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        {t("edit")}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(session.id)}
+                        disabled={deletingId === session.id}
+                        style={{
+                          padding: "0.25rem 0.75rem",
+                          backgroundColor:
+                            deletingId === session.id ? "#999" : "#d32f2f",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor:
+                            deletingId === session.id
+                              ? "not-allowed"
+                              : "pointer",
+                          fontSize: "0.875rem",
+                          opacity: deletingId === session.id ? 0.6 : 1,
+                        }}
+                      >
+                        {deletingId === session.id
+                          ? language === "tr"
+                            ? "Siliniyor..."
+                            : "Deleting..."
+                          : language === "tr"
+                          ? "Sil"
+                          : "Delete"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
