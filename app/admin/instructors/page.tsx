@@ -1,18 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/lib/useTheme";
 import { useLanguage } from "@/lib/LanguageContext";
 import Spinner from "@/components/Spinner";
 import Modal from "@/components/Modal";
 import { showToast } from "@/components/Toast";
+import dynamic from "next/dynamic";
+
+// Dynamically import ReactQuill to avoid SSR issues
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+import "react-quill/dist/quill.snow.css";
 
 interface Instructor {
   id: string;
   userId: string;
   organizationId: string;
   bio?: string;
+  photoUrl?: string;
   specialties?: string[];
   status: string;
   user: {
@@ -38,6 +44,9 @@ export default function InstructorsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Instructor>>({});
   const [saving, setSaving] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newInstructor, setNewInstructor] = useState({
@@ -138,9 +147,12 @@ export default function InstructorsPage() {
   const handleEdit = (instructor: Instructor) => {
     setEditForm({
       bio: instructor.bio || "",
+      photoUrl: instructor.photoUrl || "",
       specialties: instructor.specialties || [],
       status: instructor.status,
     });
+    setPhotoPreview(instructor.photoUrl || null);
+    setPhotoFile(null);
     setEditingId(instructor.id);
     setError(null);
   };
@@ -148,7 +160,48 @@ export default function InstructorsPage() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditForm({});
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setError(null);
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        showToast(
+          t("invalidFileType") ||
+            "Invalid file type. Only JPEG, PNG, and WebP images are allowed.",
+          "error"
+        );
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        showToast(
+          t("fileSizeExceeded") || "File size exceeds 5MB limit",
+          "error"
+        );
+        return;
+      }
+
+      setPhotoFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -158,8 +211,38 @@ export default function InstructorsPage() {
     setError(null);
 
     try {
+      // Upload photo first if a new photo was selected
+      let photoUrl = editForm.photoUrl;
+      if (photoFile) {
+        setUploadingPhoto(true);
+        const photoFormData = new FormData();
+        photoFormData.append("photo", photoFile);
+
+        const photoResponse = await fetch(
+          `/api/instructors/${editingId}/photo`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: photoFormData,
+          }
+        );
+
+        if (!photoResponse.ok) {
+          const errorData = await photoResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to upload photo");
+        }
+
+        const photoData = await photoResponse.json();
+        photoUrl = photoData.photoUrl;
+        setUploadingPhoto(false);
+      }
+
+      // Update instructor data
       const updateData: any = {};
       if (editForm.bio !== undefined) updateData.bio = editForm.bio || null;
+      if (photoUrl !== undefined) updateData.photoUrl = photoUrl || null;
       if (editForm.specialties !== undefined)
         updateData.specialties = editForm.specialties;
       if (editForm.status !== undefined) updateData.status = editForm.status;
@@ -184,12 +267,36 @@ export default function InstructorsPage() {
       );
       setEditingId(null);
       setEditForm({});
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      showToast(
+        t("instructorUpdatedSuccessfully") || "Instructor updated successfully",
+        "success"
+      );
     } catch (err: any) {
       setError(err.message || "Failed to update instructor");
+      showToast(err.message || "Failed to update instructor", "error");
     } finally {
       setSaving(false);
+      setUploadingPhoto(false);
     }
   };
+
+  // ReactQuill modules configuration
+  const quillModules = useMemo(
+    () => ({
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ["bold", "italic", "underline", "strike"],
+        [{ list: "ordered" }, { list: "bullet" }],
+        [{ indent: "-1" }, { indent: "+1" }],
+        ["link"],
+        [{ color: [] }, { background: [] }],
+        ["clean"],
+      ],
+    }),
+    []
+  );
 
   const handleDeleteClick = (id: string, instructorName: string) => {
     setDeleteModal({ isOpen: true, instructorId: id, instructorName });
@@ -879,10 +986,10 @@ export default function InstructorsPage() {
                                 style={{
                                   display: "grid",
                                   gap: "1.5rem",
-                                  gridTemplateColumns: "1fr 1fr 1fr",
+                                  gridTemplateColumns: "1fr 1fr",
                                 }}
                               >
-                                <div>
+                                <div style={{ gridColumn: "1 / -1" }}>
                                   <label
                                     style={{
                                       display: "block",
@@ -894,37 +1001,157 @@ export default function InstructorsPage() {
                                   >
                                     {t("bio")}
                                   </label>
-                                  <textarea
-                                    value={editForm.bio || ""}
-                                    onChange={(e) =>
-                                      setEditForm({
-                                        ...editForm,
-                                        bio: e.target.value,
-                                      })
-                                    }
+                                  {typeof window !== "undefined" &&
+                                    ReactQuill && (
+                                      <div
+                                        style={{
+                                          backgroundColor: colors.inputBg,
+                                          borderRadius: "6px",
+                                          overflow: "hidden",
+                                        }}
+                                      >
+                                        <ReactQuill
+                                          theme="snow"
+                                          value={editForm.bio || ""}
+                                          onChange={(value) =>
+                                            setEditForm({
+                                              ...editForm,
+                                              bio: value,
+                                            })
+                                          }
+                                          modules={quillModules}
+                                          style={{
+                                            minHeight: "200px",
+                                            color: colors.text,
+                                          }}
+                                        />
+                                        <style jsx global>{`
+                                          .ql-container {
+                                            background-color: ${colors.inputBg};
+                                            color: ${colors.text};
+                                            min-height: 150px;
+                                            font-size: 0.875rem;
+                                            border-bottom-left-radius: 6px;
+                                            border-bottom-right-radius: 6px;
+                                          }
+                                          .ql-toolbar {
+                                            background-color: ${theme === "dark"
+                                              ? "#333"
+                                              : "#f5f5f5"};
+                                            border-top-left-radius: 6px;
+                                            border-top-right-radius: 6px;
+                                            border-color: ${colors.border};
+                                          }
+                                          .ql-editor {
+                                            min-height: 150px;
+                                          }
+                                          .ql-editor.ql-blank::before {
+                                            color: ${colors.textMuted};
+                                            font-style: italic;
+                                          }
+                                          .ql-stroke {
+                                            stroke: ${colors.text};
+                                          }
+                                          .ql-fill {
+                                            fill: ${colors.text};
+                                          }
+                                          .ql-picker-label {
+                                            color: ${colors.text};
+                                          }
+                                        `}</style>
+                                      </div>
+                                    )}
+                                </div>
+                                <div>
+                                  <label
                                     style={{
-                                      width: "100%",
-                                      padding: "0.75rem",
-                                      border: `1px solid ${colors.border}`,
-                                      borderRadius: "6px",
+                                      display: "block",
+                                      marginBottom: "0.5rem",
+                                      fontWeight: "600",
                                       fontSize: "0.875rem",
-                                      minHeight: "100px",
-                                      backgroundColor: colors.inputBg,
                                       color: colors.text,
-                                      resize: "vertical",
-                                      fontFamily: "inherit",
-                                      transition:
-                                        "border-color 0.3s, background-color 0.3s",
                                     }}
-                                    onFocus={(e) => {
-                                      e.target.style.borderColor = "#1976d2";
+                                  >
+                                    {t("photo") || "Photo"}
+                                  </label>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: "0.5rem",
                                     }}
-                                    onBlur={(e) => {
-                                      e.target.style.borderColor =
-                                        colors.border;
-                                    }}
-                                    placeholder={t("instructorBioPlaceholder")}
-                                  />
+                                  >
+                                    {photoPreview && (
+                                      <div
+                                        style={{
+                                          width: "150px",
+                                          height: "150px",
+                                          borderRadius: "8px",
+                                          overflow: "hidden",
+                                          border: `2px solid ${colors.border}`,
+                                          backgroundColor: colors.inputBg,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                        }}
+                                      >
+                                        <img
+                                          src={photoPreview}
+                                          alt="Preview"
+                                          style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            objectFit: "cover",
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                    <input
+                                      type="file"
+                                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                                      onChange={handlePhotoChange}
+                                      disabled={uploadingPhoto}
+                                      style={{
+                                        width: "100%",
+                                        padding: "0.5rem",
+                                        border: `1px solid ${colors.border}`,
+                                        borderRadius: "6px",
+                                        fontSize: "0.875rem",
+                                        backgroundColor: colors.inputBg,
+                                        color: colors.text,
+                                        cursor: uploadingPhoto
+                                          ? "not-allowed"
+                                          : "pointer",
+                                        opacity: uploadingPhoto ? 0.6 : 1,
+                                      }}
+                                    />
+                                    {uploadingPhoto && (
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "0.5rem",
+                                          fontSize: "0.875rem",
+                                          color: colors.textSecondary,
+                                        }}
+                                      >
+                                        <Spinner size={16} />
+                                        <span>
+                                          {t("uploading") || "Uploading..."}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <p
+                                      style={{
+                                        fontSize: "0.75rem",
+                                        color: colors.textMuted,
+                                        margin: 0,
+                                      }}
+                                    >
+                                      {t("photoUploadHint") ||
+                                        "JPEG, PNG, or WebP. Max 5MB."}
+                                    </p>
+                                  </div>
                                 </div>
                                 <div>
                                   <label
