@@ -102,7 +102,7 @@ const translations: Record<Language, Record<string, string>> = {
     saving: "Saving...",
     deleting: "Deleting...",
     deleteConfirm:
-      "Are you sure you want to delete this instructor? This action cannot be undone.",
+      "Are you sure you want to delete {name}? This action cannot be undone.",
     specialtiesPlaceholder: "Cycling, Yoga, Pilates",
     specialtiesCommaSeparated: "Specialties (comma-separated)",
     instructorBioPlaceholder: "Instructor bio...",
@@ -205,6 +205,7 @@ const translations: Record<Language, Record<string, string>> = {
     deleteMember: "Delete Member",
     deleteInstructor: "Delete Instructor",
     deleteWarning: "This action cannot be undone.",
+    instructorDeletedSuccessfully: "Instructor deleted successfully",
     creditTransactionHistory: "Credit Transaction History",
     viewHistory: "History",
     noTransactions: "No transactions found",
@@ -560,7 +561,10 @@ const translations: Record<Language, Record<string, string>> = {
     saving: "Kaydediliyor...",
     deleting: "Siliniyor...",
     deleteConfirm:
-      "Bu eğitmeni silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      "{name} isimli eğitmeni silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    deleteInstructor: "Eğitmeni Sil",
+    deleteWarning: "Bu işlem geri alınamaz.",
+    instructorDeletedSuccessfully: "Eğitmen başarıyla silindi",
     specialtiesPlaceholder: "Bisiklet, Yoga, Pilates",
     specialtiesCommaSeparated: "Uzmanlık Alanları (virgülle ayrılmış)",
     instructorBioPlaceholder: "Eğitmen biyografisi...",
