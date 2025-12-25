@@ -459,15 +459,44 @@ export default function RedemptionsPage() {
               (r) => r.status === "PENDING"
             );
 
-            // Combine both sources
-            const allPendingItems = [
-              ...pendingFromBackend,
-              ...pendingBankTransfer,
-            ];
+            // Deduplicate by ID - same pending redemptions might exist in both sources
+            const seenIds = new Set<string>();
+            const allPendingItems: (PendingRedemption | Redemption)[] = [];
 
-            console.log("Pending items to display:", allPendingItems);
-            console.log("Pending from backend:", pendingFromBackend);
-            console.log("Pending bank transfer:", pendingBankTransfer);
+            // First, add items from main backend
+            for (const item of pendingFromBackend) {
+              if (!seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                allPendingItems.push(item);
+              }
+            }
+
+            // Then, add items from Supabase that aren't already included
+            for (const item of pendingBankTransfer) {
+              // Check both id and order_id fields for bank transfer items
+              const itemId = item.id || (item as any).order_id;
+              // Also check if this corresponds to a redemption ID from main backend
+              const redemptionId =
+                (item as any).redemption_id || (item as any).redemptionId;
+
+              // Skip if we've already seen this ID or if it matches a redemption ID from backend
+              if (
+                itemId &&
+                !seenIds.has(itemId) &&
+                (!redemptionId || !seenIds.has(redemptionId))
+              ) {
+                seenIds.add(itemId);
+                if (redemptionId) {
+                  seenIds.add(redemptionId);
+                }
+                allPendingItems.push(item);
+              }
+            }
+
+            console.log("Pending items to display:", allPendingItems.length);
+            console.log("Pending from backend:", pendingFromBackend.length);
+            console.log("Pending bank transfer:", pendingBankTransfer.length);
+            console.log("Deduplicated count:", allPendingItems.length);
 
             if (allPendingItems.length === 0) {
               return (
@@ -1222,6 +1251,3 @@ export default function RedemptionsPage() {
     </div>
   );
 }
-
-
-
