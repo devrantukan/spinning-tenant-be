@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/lib/useTheme";
 import { useLanguage } from "@/lib/LanguageContext";
 import Spinner from "@/components/Spinner";
+import Modal from "@/components/Modal";
 
 interface Booking {
   id: string;
@@ -61,6 +62,8 @@ export default function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const router = useRouter();
   const { theme } = useTheme();
   const { t, language } = useLanguage();
@@ -612,59 +615,84 @@ export default function BookingsPage() {
                           </span>
                         </td>
                         <td style={{ padding: "1rem" }}>
-                          {(() => {
-                            const cancelInfo = canCancelBooking(booking);
-                            return (
-                              <button
-                                onClick={() => handleCancel(booking.id)}
-                                disabled={
-                                  !cancelInfo.canCancel ||
-                                  cancellingId === booking.id
-                                }
-                                style={{
-                                  padding: "0.25rem 0.75rem",
-                                  backgroundColor:
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "0.5rem",
+                              alignItems: "center",
+                            }}
+                          >
+                            <button
+                              onClick={() => {
+                                setSelectedBooking(booking);
+                                setShowDetailsModal(true);
+                              }}
+                              style={{
+                                padding: "0.25rem 0.75rem",
+                                backgroundColor: colors.primary,
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                fontSize: "0.875rem",
+                              }}
+                            >
+                              {language === "tr" ? "Detaylar" : "Details"}
+                            </button>
+                            {(() => {
+                              const cancelInfo = canCancelBooking(booking);
+                              return (
+                                <button
+                                  onClick={() => handleCancel(booking.id)}
+                                  disabled={
                                     !cancelInfo.canCancel ||
                                     cancellingId === booking.id
-                                      ? "#999"
-                                      : "#d32f2f",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor:
-                                    !cancelInfo.canCancel ||
-                                    cancellingId === booking.id
-                                      ? "not-allowed"
-                                      : "pointer",
-                                  fontSize: "0.875rem",
-                                  opacity:
-                                    !cancelInfo.canCancel ||
-                                    cancellingId === booking.id
-                                      ? 0.6
-                                      : 1,
-                                }}
-                                title={
-                                  !cancelInfo.canCancel
-                                    ? cancelInfo.reason || ""
-                                    : cancelInfo.willRefund
+                                  }
+                                  style={{
+                                    padding: "0.25rem 0.75rem",
+                                    backgroundColor:
+                                      !cancelInfo.canCancel ||
+                                      cancellingId === booking.id
+                                        ? "#999"
+                                        : "#d32f2f",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor:
+                                      !cancelInfo.canCancel ||
+                                      cancellingId === booking.id
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    fontSize: "0.875rem",
+                                    opacity:
+                                      !cancelInfo.canCancel ||
+                                      cancellingId === booking.id
+                                        ? 0.6
+                                        : 1,
+                                  }}
+                                  title={
+                                    !cancelInfo.canCancel
+                                      ? cancelInfo.reason || ""
+                                      : cancelInfo.willRefund
+                                      ? language === "tr"
+                                        ? "Kredi iade edilecek"
+                                        : "Credit will be refunded"
+                                      : language === "tr"
+                                      ? "Kredi iade edilmeyecek"
+                                      : "Credit will not be refunded"
+                                  }
+                                >
+                                  {cancellingId === booking.id
                                     ? language === "tr"
-                                      ? "Kredi iade edilecek"
-                                      : "Credit will be refunded"
+                                      ? "İptal ediliyor..."
+                                      : "Cancelling..."
                                     : language === "tr"
-                                    ? "Kredi iade edilmeyecek"
-                                    : "Credit will not be refunded"
-                                }
-                              >
-                                {cancellingId === booking.id
-                                  ? language === "tr"
-                                    ? "İptal ediliyor..."
-                                    : "Cancelling..."
-                                  : language === "tr"
-                                  ? "İptal"
-                                  : "Cancel"}
-                              </button>
-                            );
-                          })()}
+                                    ? "İptal"
+                                    : "Cancel"}
+                                </button>
+                              );
+                            })()}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -685,6 +713,491 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+
+      {/* Booking Details Modal */}
+      {showDetailsModal && selectedBooking && (
+        <Modal
+          isOpen={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedBooking(null);
+          }}
+          title={
+            language === "tr" ? "Rezervasyon Detayları" : "Booking Details"
+          }
+          size="large"
+          showConfirm={false}
+          showCancel={false}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.5rem",
+            }}
+          >
+            {/* Booking ID */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontWeight: "600",
+                  marginBottom: "0.5rem",
+                  color: colors.text,
+                  fontSize: "0.875rem",
+                }}
+              >
+                {language === "tr" ? "Rezervasyon No" : "Booking ID"}
+              </label>
+              <div
+                style={{
+                  padding: "0.75rem",
+                  backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                  borderRadius: "4px",
+                  color: colors.textSecondary,
+                  fontFamily: "monospace",
+                  fontSize: "0.875rem",
+                }}
+              >
+                {selectedBooking.id}
+              </div>
+            </div>
+
+            {/* Member Information */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontWeight: "600",
+                  marginBottom: "0.5rem",
+                  color: colors.text,
+                  fontSize: "0.875rem",
+                }}
+              >
+                {t("member") || "Member"}
+              </label>
+              <div
+                style={{
+                  padding: "0.75rem",
+                  backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                  borderRadius: "4px",
+                }}
+              >
+                <div style={{ color: colors.text, marginBottom: "0.25rem" }}>
+                  <strong>{selectedBooking.member?.user?.name || "N/A"}</strong>
+                </div>
+                {selectedBooking.member?.user?.email && (
+                  <div
+                    style={{
+                      fontSize: "0.875rem",
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    {selectedBooking.member.user.email}
+                  </div>
+                )}
+                {selectedBooking.member?.id && (
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      color: colors.textMuted,
+                      marginTop: "0.25rem",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    ID: {selectedBooking.member.id}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Session Information */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontWeight: "600",
+                  marginBottom: "0.5rem",
+                  color: colors.text,
+                  fontSize: "0.875rem",
+                }}
+              >
+                {language === "tr" ? "Oturum Bilgileri" : "Session Information"}
+              </label>
+              <div
+                style={{
+                  padding: "0.75rem",
+                  backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                  borderRadius: "4px",
+                  display: "grid",
+                  gap: "0.75rem",
+                }}
+              >
+                <div>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: colors.textMuted,
+                      display: "block",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    {t("class") || "Class"}
+                  </span>
+                  <span style={{ color: colors.text }}>
+                    {language === "tr" && selectedBooking.session?.class?.nameTr
+                      ? selectedBooking.session.class.nameTr
+                      : selectedBooking.session?.class?.name || "N/A"}
+                  </span>
+                </div>
+                {selectedBooking.session?.location?.name && (
+                  <div>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        color: colors.textMuted,
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {language === "tr" ? "Konum" : "Location"}
+                    </span>
+                    <span style={{ color: colors.text }}>
+                      {selectedBooking.session.location.name}
+                    </span>
+                  </div>
+                )}
+                {selectedBooking.session?.instructor?.user && (
+                  <div>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        color: colors.textMuted,
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {language === "tr" ? "Eğitmen" : "Instructor"}
+                    </span>
+                    <span style={{ color: colors.text }}>
+                      {selectedBooking.session.instructor.user.name ||
+                        selectedBooking.session.instructor.user.email ||
+                        "N/A"}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: colors.textMuted,
+                      display: "block",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    {t("startTime") || "Start Time"}
+                  </span>
+                  <span style={{ color: colors.text }}>
+                    {selectedBooking.session?.startTime
+                      ? formatDate(selectedBooking.session.startTime)
+                      : "N/A"}
+                  </span>
+                </div>
+                <div>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: colors.textMuted,
+                      display: "block",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    {t("endTime") || "End Time"}
+                  </span>
+                  <span style={{ color: colors.text }}>
+                    {selectedBooking.session?.endTime
+                      ? formatDate(selectedBooking.session.endTime)
+                      : "N/A"}
+                  </span>
+                </div>
+                {selectedBooking.session?.id && (
+                  <div>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        color: colors.textMuted,
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {language === "tr" ? "Oturum ID" : "Session ID"}
+                    </span>
+                    <span
+                      style={{
+                        color: colors.textSecondary,
+                        fontFamily: "monospace",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      {selectedBooking.session.id}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Payment & Seat Information */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
+              }}
+            >
+              {/* Seat */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {language === "tr" ? "Koltuk" : "Seat"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.75rem",
+                    backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                    borderRadius: "4px",
+                    color: colors.text,
+                  }}
+                >
+                  {selectedBooking.seat
+                    ? selectedBooking.seat.name ||
+                      `${selectedBooking.seat.row}-${selectedBooking.seat.column}`
+                    : language === "tr"
+                    ? "Belirtilmemiş"
+                    : "Not Assigned"}
+                </div>
+              </div>
+
+              {/* Payment Type */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {language === "tr" ? "Ödeme Türü" : "Payment Type"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.75rem",
+                    backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                    borderRadius: "4px",
+                    color: colors.text,
+                  }}
+                >
+                  {selectedBooking.paymentType
+                    ? selectedBooking.paymentType === "CREDITS"
+                      ? language === "tr"
+                        ? "Kredi"
+                        : "Credits"
+                      : selectedBooking.paymentType === "ALL_ACCESS"
+                      ? "All Access"
+                      : selectedBooking.paymentType === "FRIEND_PASS"
+                      ? language === "tr"
+                        ? "Arkadaş Pası"
+                        : "Friend Pass"
+                      : selectedBooking.paymentType
+                    : language === "tr"
+                    ? "Belirtilmemiş"
+                    : "Not Specified"}
+                </div>
+              </div>
+            </div>
+
+            {/* Credits */}
+            {(selectedBooking.creditsUsed !== undefined ||
+              selectedBooking.creditCost !== undefined) && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {language === "tr" ? "Kredi" : "Credits"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.75rem",
+                    backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                    borderRadius: "4px",
+                    color: colors.text,
+                  }}
+                >
+                  {selectedBooking.creditsUsed !== undefined &&
+                  selectedBooking.creditsUsed !== null
+                    ? selectedBooking.creditsUsed
+                    : selectedBooking.creditCost !== undefined &&
+                      selectedBooking.creditCost !== null
+                    ? selectedBooking.creditCost
+                    : "-"}
+                </div>
+              </div>
+            )}
+
+            {/* Status & Dates */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
+              }}
+            >
+              {/* Status */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {t("status") || "Status"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "4px",
+                    fontSize: "0.875rem",
+                    display: "inline-block",
+                    backgroundColor: getStatusColor(selectedBooking.status).bg,
+                    color: getStatusColor(selectedBooking.status).color,
+                    fontWeight: "600",
+                  }}
+                >
+                  {selectedBooking.status || "UNKNOWN"}
+                </div>
+              </div>
+
+              {/* Created At */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {language === "tr" ? "Oluşturulma" : "Created At"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.75rem",
+                    backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                    borderRadius: "4px",
+                    color: colors.text,
+                  }}
+                >
+                  {formatDate(selectedBooking.createdAt)}
+                </div>
+              </div>
+            </div>
+
+            {/* Check-in Status */}
+            {selectedBooking.checkedIn !== undefined && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {language === "tr" ? "Check-in Durumu" : "Check-in Status"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.75rem",
+                    backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <div style={{ color: colors.text, marginBottom: "0.25rem" }}>
+                    {selectedBooking.checkedIn
+                      ? language === "tr"
+                        ? "✓ Check-in yapıldı"
+                        : "✓ Checked In"
+                      : language === "tr"
+                      ? "✗ Check-in yapılmadı"
+                      : "✗ Not Checked In"}
+                  </div>
+                  {selectedBooking.checkedInAt && (
+                    <div
+                      style={{
+                        fontSize: "0.875rem",
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      {language === "tr" ? "Tarih" : "Date"}:{" "}
+                      {formatDate(selectedBooking.checkedInAt)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Package Redemption (if applicable) */}
+            {selectedBooking.packageRedemptionId && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    color: colors.text,
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {language === "tr"
+                    ? "Paket İndirimi ID"
+                    : "Package Redemption ID"}
+                </label>
+                <div
+                  style={{
+                    padding: "0.75rem",
+                    backgroundColor: theme === "dark" ? "#2a2a2a" : "#f5f5f5",
+                    borderRadius: "4px",
+                    color: colors.textSecondary,
+                    fontFamily: "monospace",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {selectedBooking.packageRedemptionId}
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
