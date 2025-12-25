@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/lib/useTheme";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -348,10 +348,52 @@ export default function RedemptionsPage() {
     );
   }
 
+  // Calculate deduplicated pending count
+  const deduplicatedPendingCount = useMemo(() => {
+    const pendingFromBackend = redemptions.filter(
+      (r) => r.status === "PENDING"
+    );
+
+    const pendingBankTransfer = pendingRedemptions.filter(
+      (r) => r.status === "PENDING"
+    );
+
+    // Deduplicate by ID - same pending redemptions might exist in both sources
+    const seenIds = new Set<string>();
+
+    // First, count items from main backend
+    for (const item of pendingFromBackend) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id);
+      }
+    }
+
+    // Then, count items from Supabase that aren't already included
+    for (const item of pendingBankTransfer) {
+      const itemId = item.id || (item as any).order_id;
+      const redemptionId =
+        (item as any).redemption_id || (item as any).redemptionId;
+
+      if (
+        itemId &&
+        !seenIds.has(itemId) &&
+        (!redemptionId || !seenIds.has(redemptionId))
+      ) {
+        seenIds.add(itemId);
+        if (redemptionId) {
+          seenIds.add(redemptionId);
+        }
+      }
+    }
+
+    return seenIds.size;
+  }, [redemptions, pendingRedemptions]);
+
   // Debug info
   console.log("Component state:", {
     pendingRedemptions: pendingRedemptions.length,
     redemptions: redemptions.length,
+    deduplicatedPendingCount,
     activeTab,
     loading,
     error,
@@ -411,13 +453,7 @@ export default function RedemptionsPage() {
             fontWeight: activeTab === "pending" ? "bold" : "normal",
           }}
         >
-          {t("redemptionsPending") || "Pending"} (
-          {
-            // Count PENDING redemptions from main backend + bank transfer pending
-            redemptions.filter((r) => r.status === "PENDING").length +
-              pendingRedemptions.filter((r) => r.status === "PENDING").length
-          }
-          )
+          {t("redemptionsPending") || "Pending"} ({deduplicatedPendingCount})
         </button>
         <button
           onClick={() => setActiveTab("all")}
