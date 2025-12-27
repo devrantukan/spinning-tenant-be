@@ -12,15 +12,42 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request)
-    const { id } = await params
-    const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
+    // Extract id from params first
+    const { id } = await params;
     
-    const session = await mainBackendClient.getSession(id, authToken)
+    // Sessions should be publicly viewable - auth is optional
+    // Try to get auth token if available, but don't require it
+    let authToken: string | undefined = undefined;
+    try {
+      await requireAuth(request);
+      authToken = request.headers.get("authorization")?.replace("Bearer ", "");
+    } catch (authError) {
+      // Auth is optional for viewing sessions - continue without auth
+      console.log(
+        `[SESSIONS] No auth token provided - fetching session ${id} as public`
+      );
+    }
     
-    return NextResponse.json(session)
+    try {
+      const session = await mainBackendClient.getSession(id, authToken)
+      return NextResponse.json(session)
+    } catch (sessionError: any) {
+      // If we get 401 and there's no auth token, it means the main backend requires auth
+      // For public access, return 404 instead of 401 to avoid confusing guest users
+      if ((sessionError.message === 'Unauthorized' || sessionError.status === 401) && !authToken) {
+        console.log(
+          `[SESSIONS] Main backend returned 401 for public request - returning 404: ${id}`
+        )
+        return NextResponse.json(
+          { error: 'Session not found' },
+          { status: 404 }
+        )
+      }
+      // Re-throw if it's a different error or if we have auth token
+      throw sessionError
+    }
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
+    if (error.message === 'Unauthorized' || error.status === 401) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
