@@ -2,38 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 
 /**
- * GET /api/seat-layouts - Get seat layout by locationId
+ * GET /api/seat-layouts - Get seat layout by locationId or seatLayoutId
  * Public endpoint - no authentication required
  *
  * Query params:
- * - locationId (required): The location ID to get seat layout for
+ * - locationId: The location ID to get seat layout for
+ * - seatLayoutId: The seat layout ID to get seat layout for
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get("locationId");
+    const seatLayoutId = searchParams.get("seatLayoutId");
 
-    if (!locationId) {
+    if (!locationId && !seatLayoutId) {
       return NextResponse.json(
-        { error: "locationId is required" },
+        { error: "locationId or seatLayoutId is required" },
         { status: 400 }
       );
     }
 
     console.log("[SEAT-LAYOUT] Fetching seat layout from Supabase:", {
       locationId: locationId,
+      seatLayoutId: seatLayoutId,
     });
 
     // Create Supabase client with service role key to bypass RLS
     const supabase = createServerClient();
 
-    // Query seat_layouts table by locationId
-    const { data: seatLayout, error: supabaseError } = await supabase
-      .from("seat_layouts")
-      .select("*")
-      .eq("locationId", locationId)
-      .eq("isActive", true)
-      .single();
+    // Query seat_layouts table by locationId or seatLayoutId
+    let query = supabase.from("seat_layouts").select("*").eq("isActive", true);
+
+    if (seatLayoutId) {
+      query = query.eq("id", seatLayoutId);
+    } else if (locationId) {
+      query = query.eq("locationId", locationId);
+    }
+
+    const { data: seatLayout, error: supabaseError } = await query.single();
 
     if (supabaseError) {
       console.error("[SEAT-LAYOUT] Error querying seat_layouts table:", {
@@ -100,7 +106,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-

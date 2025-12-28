@@ -340,14 +340,6 @@ export default function RedemptionsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: "2rem" }}>
-        <Spinner />
-      </div>
-    );
-  }
-
   // Calculate deduplicated pending count
   const deduplicatedPendingCount = useMemo(() => {
     const pendingFromBackend = redemptions.filter(
@@ -398,6 +390,14 @@ export default function RedemptionsPage() {
     loading,
     error,
   });
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "2rem" }}>
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -356,8 +356,14 @@ export const mainBackendClient = {
     requestMainBackend(`/api/sessions/${id}`, { method: "DELETE", authToken }),
 
   // Bookings
-  getBookings: (authToken?: string) =>
-    requestMainBackend(`/api/bookings`, { method: "GET", authToken }),
+  getBookings: (authToken?: string, queryParams?: Record<string, string>) => {
+    let endpoint = `/api/bookings`;
+    if (queryParams && Object.keys(queryParams).length > 0) {
+      const params = new URLSearchParams(queryParams);
+      endpoint = `${endpoint}?${params.toString()}`;
+    }
+    return requestMainBackend(endpoint, { method: "GET", authToken });
+  },
 
   getBooking: (id: string, authToken?: string) =>
     requestMainBackend(`/api/bookings/${id}`, { method: "GET", authToken }),
