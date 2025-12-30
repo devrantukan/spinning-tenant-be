@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, phone, message } = validationResult.data;
+    const organizationEmail = process.env.SMTP_FROM_EMAIL || "info@spin8studio.com";
 
     // Get organization ID
     const organizationId =
@@ -61,14 +62,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store contact form submission in Supabase
-    // For now, we'll log it and return success
-    // In production, you might want to:
-    // 1. Store in a contact_submissions table
-    // 2. Send email notification to organization
-    // 3. Store in a CRM system
+    // 1. Send email notification
+    try {
+      const { sendContactFormEmail } = await import("@/lib/email");
+      await sendContactFormEmail(organizationEmail, {
+        name,
+        email,
+        phone,
+        message,
+      });
+      console.log("[CONTACT] Notification email sent to:", organizationEmail);
+    } catch (emailError) {
+      console.error("[CONTACT] Failed to send notification email:", emailError);
+      // Continue anyway, we want to store the submission if possible
+    }
 
-    console.log("[CONTACT] New contact form submission:", {
+    // 2. Store in main backend
+    try {
+      const { mainBackendClient } = await import("@/lib/main-backend-client");
+      await mainBackendClient.createContactSubmission({
+        name,
+        email,
+        phone,
+        message,
+      });
+      console.log("[CONTACT] Submission stored via main backend client");
+    } catch (dbError) {
+      console.error("[CONTACT] Failed to store submission in main backend:", dbError);
+    }
+
+    console.log("[CONTACT] New contact form submission processed:", {
       organizationId,
       name,
       email,
@@ -77,9 +100,6 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    // TODO: Store in database or send email notification
-    // Example: await prisma.contactSubmission.create({ ... })
-    // Example: await sendContactFormEmail({ ... })
 
     return NextResponse.json(
       {

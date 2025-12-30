@@ -50,7 +50,7 @@ async function requestMainBackend(
   let finalUrl = url;
   let requestBody = body;
 
-  if (method === "GET") {
+  if (method === "GET" || method === "DELETE") {
     finalUrl = endpoint.includes("?")
       ? `${url}&organizationId=${TENANT_ORGANIZATION_ID}`
       : `${url}?organizationId=${TENANT_ORGANIZATION_ID}`;
@@ -152,7 +152,12 @@ async function requestMainBackend(
       throw error;
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`[MAIN-BE-CLIENT] Response for ${method} ${endpoint}:`, {
+      status: response.status,
+      data: data
+    });
+    return data;
   } catch (error: any) {
     // If it's already our formatted error, just rethrow
     if (error.status !== undefined) {
@@ -651,4 +656,15 @@ export const mainBackendClient = {
       body: Object.keys(body).length > 0 ? body : undefined,
     });
   },
+
+  // Contact Submissions
+  getContactSubmissions: (authToken?: string) =>
+    requestMainBackend(`/api/contact/list`, { method: "GET", authToken }),
+
+  createContactSubmission: (data: any, authToken?: string) =>
+    requestMainBackend(`/api/contact`, {
+      method: "POST",
+      body: data,
+      authToken,
+    }),
 };

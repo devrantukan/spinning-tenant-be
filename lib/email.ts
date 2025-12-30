@@ -251,8 +251,118 @@ const emailTranslations = {
     actionRequiredText:
       "Lütfen müşterinin banka havalesini tamamlamasını bekleyin ve ardından paketi aktif etmek için admin panelinde ödemeyi onaylayın.",
     automatedNotification: "Bu Spin8 Studio'dan otomatik bir bildirimdir",
+    contactFormSubject: "Yeni İletişim Formu Mesajı - Spin8 Studio",
+    contactFormGreeting: "Yeni bir iletişim formu mesajı aldınız:",
+    contactName: "Ad Soyad",
+    contactEmail: "E-posta",
+    contactPhone: "Telefon",
+    contactMessage: "Mesaj",
   },
 };
+
+/**
+ * Send contact form notification email to organization
+ */
+export async function sendContactFormEmail(
+  organizationEmail: string,
+  contactDetails: {
+    name: string;
+    email: string;
+    phone?: string;
+    message: string;
+  },
+  organization?: OrganizationData | null
+): Promise<void> {
+  const { name, email, phone, message } = contactDetails;
+
+  // Determine language (default to English)
+  const lang = organization?.language === "tr" ? "tr" : "en";
+  const t = {
+    en: {
+      subject: "New Contact Form Message - Spin8 Studio",
+      greeting: "You have received a new contact form message:",
+      name: "Name",
+      email: "Email",
+      phone: "Phone",
+      message: "Message",
+      automated: "This is an automated notification from Spin8 Studio",
+    },
+    tr: {
+      subject: "Yeni İletişim Formu Mesajı - Spin8 Studio",
+      greeting: "Yeni bir iletişim formu mesajı aldınız:",
+      name: "Ad Soyad",
+      email: "E-posta",
+      phone: "Telefon",
+      message: "Mesaj",
+      automated: "Bu Spin8 Studio'dan otomatik bir bildirimdir",
+    },
+  }[lang];
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #1976d2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+        .details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb; }
+        .detail-row { display: flex; margin-bottom: 10px; border-bottom: 1px solid #f3f4f6; padding-bottom: 10px; }
+        .label { font-weight: bold; width: 120px; color: #6b7280; }
+        .value { flex: 1; color: #111827; }
+        .message-box { background-color: #f3f4f6; padding: 15px; border-radius: 4px; white-space: pre-wrap; }
+        .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 0.8em; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${t.subject}</h1>
+        </div>
+        <div class="content">
+          <p>${t.greeting}</p>
+          
+          <div class="details">
+            <div class="detail-row">
+              <span class="label">${t.name}:</span>
+              <span class="value">${name}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">${t.email}:</span>
+              <span class="value">${email}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">${t.phone}:</span>
+              <span class="value">${phone || "N/A"}</span>
+            </div>
+            <div style="margin-top: 20px;">
+              <span class="label" style="display: block; margin-bottom: 10px;">${
+                t.message
+              }:</span>
+              <div class="message-box">${message}</div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>${t.automated}</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail(
+    {
+      to: organizationEmail,
+      subject: `${t.subject} - ${name}`,
+      html,
+    },
+    organization
+  );
+}
 
 /**
  * Send bank transfer order notification emails

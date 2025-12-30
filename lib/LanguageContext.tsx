@@ -49,6 +49,7 @@ const translations: Record<Language, Record<string, string>> = {
     members: "Members",
     instructors: "Instructors",
     users: "Users",
+    contactSubmissions: "Contact Submissions",
 
     // Users
     name: "Name",
@@ -171,6 +172,7 @@ const translations: Record<Language, Record<string, string>> = {
     found: "Found",
     noDataAvailable: "No data available",
     foundItems: "Found {count} {item}",
+    noSubmissionsFound: "No contact form submissions found.",
 
     // Classes
     newClass: "New Class",
@@ -507,6 +509,7 @@ const translations: Record<Language, Record<string, string>> = {
     members: "Üyeler",
     instructors: "Eğitmenler",
     users: "Kullanıcılar",
+    contactSubmissions: "İletişim Formları",
 
     // Users
     name: "İsim",
@@ -628,6 +631,7 @@ const translations: Record<Language, Record<string, string>> = {
     found: "Bulundu",
     noDataAvailable: "Veri mevcut değil",
     foundItems: "{count} {item} bulundu",
+    noSubmissionsFound: "İletişim formu mesajı bulunamadı.",
 
     // Classes
     newClass: "Yeni Sınıf",

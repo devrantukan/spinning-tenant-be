@@ -107,6 +107,7 @@ export default function AdminLayout({
     },
     { href: "/admin/instructors", label: t("instructors") },
     { href: "/admin/users", label: t("users") },
+    { href: "/admin/contact", label: t("contactSubmissions") || "Contact Submissions" },
   ];
 
   return (

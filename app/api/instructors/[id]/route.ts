@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
 import { mainBackendClient } from '@/lib/main-backend-client'
 
 /**
@@ -12,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request)
+    // Authentication is no longer required for GET requests
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     
@@ -20,13 +19,19 @@ export async function GET(
     
     return NextResponse.json(instructor)
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
+    console.error('Error fetching instructor:', error?.message || error)
+    
+    if (
+      error?.message === 'Unauthorized' ||
+      error?.status === 401 ||
+      error?.statusText === 'Unauthorized'
+    ) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
-    console.error('Error fetching instructor:', error)
+    
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -39,7 +44,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request)
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     const body = await request.json()
@@ -67,9 +71,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request)
     const { id } = await params
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
+    
+    console.log(`[API-INSTRUCTORS] Deleting instructor with ID: ${id}`);
     
     await mainBackendClient.deleteInstructor(id, authToken)
     
@@ -88,6 +93,3 @@ export async function DELETE(
     )
   }
 }
-
-
-
