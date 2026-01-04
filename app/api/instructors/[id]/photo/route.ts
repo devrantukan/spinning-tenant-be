@@ -50,9 +50,9 @@ export async function POST(
     const fileName = `${id}-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    // Use "InstructorPhotos" (capital I) as per user's bucket configuration
+    // Use "instructorPhotos" (camelCase) as per bucket configuration
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("InstructorPhotos")
+      .from("instructorPhotos")
       .upload(filePath, photoFile, {
         cacheControl: "3600",
         upsert: true, // Replace existing file if it exists
@@ -68,7 +68,7 @@ export async function POST(
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from("InstructorPhotos")
+      .from("instructorPhotos")
       .getPublicUrl(filePath);
 
     return NextResponse.json({
@@ -84,3 +84,6 @@ export async function POST(
     );
   }
 }
+
+
+

@@ -654,6 +654,16 @@ export default function InstructorsPage() {
                       color: colors.text,
                     }}
                   >
+                    {t("photo") || "Photo"}
+                  </th>
+                  <th
+                    style={{
+                      padding: "0.75rem",
+                      textAlign: "left",
+                      fontWeight: "bold",
+                      color: colors.text,
+                    }}
+                  >
                     {t("email")}
                   </th>
                   <th
@@ -749,6 +759,39 @@ export default function InstructorsPage() {
                           >
                             {t("noName")}
                           </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "0.75rem", color: colors.text }}>
+                        {instructor.photoUrl ? (
+                          <img
+                            src={instructor.photoUrl}
+                            alt={instructor.user?.name || "Instructor"}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              border: `1px solid ${colors.border}`,
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "50%",
+                              backgroundColor: colors.inputBg,
+                              border: `1px solid ${colors.border}`,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: colors.textSecondary,
+                              fontSize: "0.875rem",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {(instructor.user?.name || "?").charAt(0).toUpperCase()}
+                          </div>
                         )}
                       </td>
                       <td style={{ padding: "0.75rem", color: colors.text }}>
