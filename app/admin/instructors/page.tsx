@@ -18,8 +18,10 @@ interface Instructor {
   userId: string;
   organizationId: string;
   bio?: string;
+  bioTr?: string;
   photoUrl?: string;
   specialties?: string[];
+  specialtiesTr?: string[];
   status: string;
   user: {
     id: string;
@@ -147,8 +149,10 @@ export default function InstructorsPage() {
   const handleEdit = (instructor: Instructor) => {
     setEditForm({
       bio: instructor.bio || "",
+      bioTr: instructor.bioTr || "",
       photoUrl: instructor.photoUrl || "",
       specialties: instructor.specialties || [],
+      specialtiesTr: instructor.specialtiesTr || [],
       status: instructor.status,
     });
     setPhotoPreview(instructor.photoUrl || null);
@@ -242,9 +246,12 @@ export default function InstructorsPage() {
       // Update instructor data
       const updateData: any = {};
       if (editForm.bio !== undefined) updateData.bio = editForm.bio || null;
+      if (editForm.bioTr !== undefined) updateData.bioTr = editForm.bioTr || null;
       if (photoUrl !== undefined) updateData.photoUrl = photoUrl || null;
       if (editForm.specialties !== undefined)
         updateData.specialties = editForm.specialties;
+      if (editForm.specialtiesTr !== undefined)
+        updateData.specialtiesTr = editForm.specialtiesTr;
       if (editForm.status !== undefined) updateData.status = editForm.status;
 
       const response = await fetch(`/api/instructors/${editingId}`, {
@@ -339,12 +346,17 @@ export default function InstructorsPage() {
     }
   };
 
-  const handleSpecialtyChange = (value: string) => {
+  const handleSpecialtyChange = (value: string, lang: "en" | "tr" = "en") => {
     const specialties = value
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-    setEditForm({ ...editForm, specialties });
+    
+    if (lang === "tr") {
+      setEditForm({ ...editForm, specialtiesTr: specialties });
+    } else {
+      setEditForm({ ...editForm, specialties: specialties });
+    }
   };
 
   const handleAddInstructor = async (e: React.FormEvent) => {
@@ -1032,20 +1044,20 @@ export default function InstructorsPage() {
                                   gridTemplateColumns: "1fr 1fr",
                                 }}
                               >
-                                <div style={{ gridColumn: "1 / -1" }}>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "0.5rem",
-                                      fontWeight: "600",
-                                      fontSize: "0.875rem",
-                                      color: colors.text,
-                                    }}
-                                  >
-                                    {t("bio")}
-                                  </label>
-                                  {typeof window !== "undefined" &&
-                                    ReactQuill && (
+                                {typeof window !== "undefined" && ReactQuill && (
+                                  <>
+                                    <div style={{ gridColumn: "1 / -1" }}>
+                                      <label
+                                        style={{
+                                          display: "block",
+                                          marginBottom: "0.5rem",
+                                          fontWeight: "600",
+                                          fontSize: "0.875rem",
+                                          color: colors.text,
+                                        }}
+                                      >
+                                        {t("bio")} (EN)
+                                      </label>
                                       <div
                                         style={{
                                           backgroundColor: colors.inputBg,
@@ -1068,43 +1080,46 @@ export default function InstructorsPage() {
                                             color: colors.text,
                                           }}
                                         />
-                                        <style jsx global>{`
-                                          .ql-container {
-                                            background-color: ${colors.inputBg};
-                                            color: ${colors.text};
-                                            min-height: 150px;
-                                            font-size: 0.875rem;
-                                            border-bottom-left-radius: 6px;
-                                            border-bottom-right-radius: 6px;
-                                          }
-                                          .ql-toolbar {
-                                            background-color: ${theme === "dark"
-                                              ? "#333"
-                                              : "#f5f5f5"};
-                                            border-top-left-radius: 6px;
-                                            border-top-right-radius: 6px;
-                                            border-color: ${colors.border};
-                                          }
-                                          .ql-editor {
-                                            min-height: 150px;
-                                          }
-                                          .ql-editor.ql-blank::before {
-                                            color: ${colors.textMuted};
-                                            font-style: italic;
-                                          }
-                                          .ql-stroke {
-                                            stroke: ${colors.text};
-                                          }
-                                          .ql-fill {
-                                            fill: ${colors.text};
-                                          }
-                                          .ql-picker-label {
-                                            color: ${colors.text};
-                                          }
-                                        `}</style>
                                       </div>
-                                    )}
-                                </div>
+                                    </div>
+                                    <div style={{ gridColumn: "1 / -1" }}>
+                                      <label
+                                        style={{
+                                          display: "block",
+                                          marginBottom: "0.5rem",
+                                          fontWeight: "600",
+                                          fontSize: "0.875rem",
+                                          color: colors.text,
+                                        }}
+                                      >
+                                        {t("bio")} (TR)
+                                      </label>
+                                      <div
+                                        style={{
+                                          backgroundColor: colors.inputBg,
+                                          borderRadius: "6px",
+                                          overflow: "hidden",
+                                        }}
+                                      >
+                                        <ReactQuill
+                                          theme="snow"
+                                          value={editForm.bioTr || ""}
+                                          onChange={(value) =>
+                                            setEditForm({
+                                              ...editForm,
+                                              bioTr: value,
+                                            })
+                                          }
+                                          modules={quillModules}
+                                          style={{
+                                            minHeight: "200px",
+                                            color: colors.text,
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
                                 <div>
                                   <label
                                     style={{
@@ -1206,7 +1221,7 @@ export default function InstructorsPage() {
                                       color: colors.text,
                                     }}
                                   >
-                                    {t("specialtiesCommaSeparated")}
+                                    {t("specialtiesCommaSeparated")} (EN)
                                   </label>
                                   <input
                                     type="text"
@@ -1214,7 +1229,49 @@ export default function InstructorsPage() {
                                       editForm.specialties?.join(", ") || ""
                                     }
                                     onChange={(e) =>
-                                      handleSpecialtyChange(e.target.value)
+                                      handleSpecialtyChange(e.target.value, "en")
+                                    }
+                                    style={{
+                                      width: "100%",
+                                      padding: "0.75rem",
+                                      border: `1px solid ${colors.border}`,
+                                      borderRadius: "6px",
+                                      fontSize: "0.875rem",
+                                      backgroundColor: colors.inputBg,
+                                      color: colors.text,
+                                      fontFamily: "inherit",
+                                      transition:
+                                        "border-color 0.3s, background-color 0.3s",
+                                    }}
+                                    onFocus={(e) => {
+                                      e.target.style.borderColor = "#1976d2";
+                                    }}
+                                    onBlur={(e) => {
+                                      e.target.style.borderColor =
+                                        colors.border;
+                                    }}
+                                    placeholder={t("specialtiesPlaceholder")}
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "0.5rem",
+                                      fontWeight: "600",
+                                      fontSize: "0.875rem",
+                                      color: colors.text,
+                                    }}
+                                  >
+                                    {t("specialtiesCommaSeparated")} (TR)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={
+                                      editForm.specialtiesTr?.join(", ") || ""
+                                    }
+                                    onChange={(e) =>
+                                      handleSpecialtyChange(e.target.value, "tr")
                                     }
                                     style={{
                                       width: "100%",

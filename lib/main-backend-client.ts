@@ -538,6 +538,7 @@ export const mainBackendClient = {
       email: string;
       name?: string;
       role: string;
+      identityNumber?: string;
       organizationId: string;
     },
     authToken?: string

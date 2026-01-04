@@ -47,6 +47,7 @@ export default function MembersPage() {
     // For creating new user
     newUserEmail: "",
     newUserName: "",
+    newUserIdentityNumber: "",
     createNewUser: true,
   });
   const [creditChange, setCreditChange] = useState({
@@ -284,6 +285,7 @@ export default function MembersPage() {
           body: JSON.stringify({
             email: formData.newUserEmail,
             name: formData.newUserName || undefined,
+            identityNumber: formData.newUserIdentityNumber || undefined,
             role: "MEMBER",
           }),
         });
@@ -328,6 +330,7 @@ export default function MembersPage() {
         creditBalance: 0,
         newUserEmail: "",
         newUserName: "",
+        newUserIdentityNumber: "",
         createNewUser: true,
       });
       showToast(t("memberCreatedSuccessfully"), "success");
@@ -404,6 +407,7 @@ export default function MembersPage() {
         creditBalance: 0,
         newUserEmail: "",
         newUserName: "",
+        newUserIdentityNumber: "",
         createNewUser: false,
       });
       setCreditChange({ amount: 0, description: "" });
@@ -457,6 +461,7 @@ export default function MembersPage() {
       creditBalance: member.creditBalance || 0,
       newUserEmail: "",
       newUserName: "",
+      newUserIdentityNumber: "",
       createNewUser: false,
     });
     setCreditChange({ amount: 0, description: "" });
@@ -472,6 +477,7 @@ export default function MembersPage() {
       creditBalance: 0,
       newUserEmail: "",
       newUserName: "",
+      newUserIdentityNumber: "",
       createNewUser: false,
     });
     setCreditChange({ amount: 0, description: "" });
@@ -824,6 +830,38 @@ export default function MembersPage() {
                       setFormData({ ...formData, newUserName: e.target.value })
                     }
                     placeholder={t("name")}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: `1px solid ${colors.inputBorder}`,
+                      borderRadius: "4px",
+                      fontSize: "1rem",
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "0.5rem",
+                      fontWeight: "600",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("identityNumber") || "Identity Number"}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.newUserIdentityNumber}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        newUserIdentityNumber: e.target.value,
+                      })
+                    }
+                    placeholder={t("identityNumber") || "11111111111"}
                     style={{
                       width: "100%",
                       padding: "0.5rem",

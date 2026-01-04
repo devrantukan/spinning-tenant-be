@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const authToken = request.headers.get('authorization')?.replace('Bearer ', '')
     const body = await request.json()
     
-    const { email, name, role } = body
+    const { email, name, role, identityNumber } = body
 
     if (!email) {
       return NextResponse.json(
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
         email,
         name: name || null,
         role: role || 'MEMBER',
+        identityNumber: identityNumber || null,
         organizationId: user.organizationId
       }, authToken)
       
