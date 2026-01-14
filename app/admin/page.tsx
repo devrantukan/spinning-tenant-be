@@ -43,6 +43,13 @@ interface OrganizationData {
     classes: number;
     sessions: number;
   };
+  // Bank Information
+  bankName?: string;
+  bankBranch?: string;
+  bankSwift?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  bankIban?: string;
 }
 
 export default function OrganizationPage() {
@@ -477,6 +484,166 @@ export default function OrganizationPage() {
                         }}
                       >
                         {data.description || "-"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+
+
+              {/* Bank Information Display */}
+              <div
+                style={{
+                  backgroundColor: colors.infoBg,
+                  padding: "1.5rem",
+                  borderRadius: "4px",
+                  border: `1px solid ${colors.border}`,
+                  transition: "background-color 0.3s, border-color 0.3s",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                <h3
+                  style={{
+                    marginTop: 0,
+                    marginBottom: "1rem",
+                    color: colors.text,
+                  }}
+                >
+                  {t("bankInformation") || "Bank Information"}
+                </h3>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <tbody>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                          width: "200px",
+                        }}
+                      >
+                        {t("bankName") || "Bank Name"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.bankName || "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankBranch") || "Bank Branch"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.bankBranch || "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankSwift") || "SWIFT / BIC Code"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.bankSwift || "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankAccountNumber") || "Account Number"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.bankAccountNumber || "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankAccountHolder") || "Account Holder"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.bankAccountName || "-"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("iban") || "IBAN"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          borderBottom: `1px solid ${colors.border}`,
+                          color: colors.text,
+                        }}
+                      >
+                        {data.bankIban || "-"}
                       </td>
                     </tr>
                   </tbody>
@@ -1825,6 +1992,218 @@ export default function OrganizationPage() {
                           borderRadius: "4px",
                           fontSize: "1rem",
                           fontFamily: "inherit",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Information Section */}
+                <div
+                  style={{
+                    backgroundColor: colors.infoBg,
+                    padding: "1.5rem",
+                    borderRadius: "4px",
+                    border: `1px solid ${colors.border}`,
+                    transition: "background-color 0.3s, border-color 0.3s",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "1rem",
+                      color: colors.text,
+                    }}
+                  >
+                    {t("bankInformation") || "Bank Information"}
+                  </h3>
+                  <div style={{ display: "grid", gap: "1rem" }}>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankName") || "Bank Name"}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.bankName || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, bankName: e.target.value })
+                        }
+                        placeholder={t("bankNamePlaceholder") || "e.g., Chase Bank"}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankBranch") || "Bank Branch"}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.bankBranch || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, bankBranch: e.target.value })
+                        }
+                        placeholder={t("bankBranchPlaceholder") || "e.g., Downtown Branch"}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankSwift") || "SWIFT / BIC Code"}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.bankSwift || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, bankSwift: e.target.value })
+                        }
+                        placeholder={t("bankSwiftPlaceholder") || "e.g., CHASUS33"}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankAccountNumber") || "Account Number"}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.bankAccountNumber || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, bankAccountNumber: e.target.value })
+                        }
+                        placeholder={t("bankAccountNumberPlaceholder") || "e.g., 123456789"}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("bankAccountHolder") || "Account Holder"}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.bankAccountName || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, bankAccountName: e.target.value })
+                        }
+                        placeholder={t("bankAccountHolderPlaceholder") || "e.g., John Doe"}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                          backgroundColor: colors.cardBg,
+                          color: colors.text,
+                          transition:
+                            "background-color 0.3s, border-color 0.3s, color 0.3s",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          fontWeight: "600",
+                          color: colors.text,
+                        }}
+                      >
+                        {t("iban") || "IBAN"}
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.bankIban || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, bankIban: e.target.value })
+                        }
+                        placeholder={t("ibanPlaceholder") || "TR..."}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "4px",
+                          fontSize: "1rem",
                           backgroundColor: colors.cardBg,
                           color: colors.text,
                           transition:

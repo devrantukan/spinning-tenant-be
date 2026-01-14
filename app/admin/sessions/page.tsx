@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/lib/useTheme";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -684,23 +684,26 @@ export default function SessionsPage() {
     }
 
     try {
+      // Convert dates to ISO strings for backend consistency, same as handleCreate
+      const updatePayload = {
+        classId: formData.classId,
+        instructorId: formData.instructorId,
+        locationId:
+          formData.locationId && formData.locationId.trim()
+            ? formData.locationId
+            : null,
+        startTime: formData.startTime ? new Date(formData.startTime).toISOString() : undefined,
+        endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
+        status: formData.status,
+      };
+
       const response = await fetch(`/api/sessions/${editingId}`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          classId: formData.classId,
-          instructorId: formData.instructorId,
-          locationId:
-            formData.locationId && formData.locationId.trim()
-              ? formData.locationId
-              : null,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          status: formData.status,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
@@ -808,6 +811,577 @@ export default function SessionsPage() {
     );
   }
 
+  const sessionForm = (
+    <div
+      style={{
+        backgroundColor: colors.cardBg,
+        padding: "1.5rem",
+        borderRadius: "8px",
+        marginBottom: "1.5rem",
+        border: `1px solid ${colors.border}`,
+      }}
+    >
+      <h3
+        style={{ marginTop: 0, marginBottom: "1rem", color: colors.text }}
+      >
+        {editingId ? t("editSession") : t("createNewSession")}
+      </h3>
+      <form onSubmit={editingId ? handleUpdate : handleCreate}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1rem",
+            marginBottom: "1rem",
+          }}
+        >
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "600",
+                color: colors.text,
+              }}
+            >
+              {t("class")} *
+            </label>
+            <select
+              required
+              value={formData.classId}
+              onChange={(e) =>
+                setFormData({ ...formData, classId: e.target.value })
+              }
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                border: `1px solid ${colors.inputBorder}`,
+                borderRadius: "4px",
+                fontSize: "1rem",
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+              }}
+            >
+              <option value="">{t("selectClass")}</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "600",
+                color: colors.text,
+              }}
+            >
+              {t("location")}
+            </label>
+            <select
+              required
+              value={formData.locationId || ""}
+              onChange={(e) => {
+                const newLocationId = e.target.value;
+                setFormData({ ...formData, locationId: newLocationId });
+                // Fetch max capacity when location changes
+                fetchMaxCapacityForLocation(newLocationId);
+              }}
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                border: `1px solid ${colors.inputBorder}`,
+                borderRadius: "4px",
+                fontSize: "1rem",
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+              }}
+            >
+              <option value="">{t("selectLocation")}</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name} {loc.isDefault ? `(${t("default")})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {formData.locationId && (
+          <div style={{ marginBottom: "1rem" }}>
+            <div
+              style={{
+                padding: "0.75rem",
+                backgroundColor: colors.theadBg,
+                borderRadius: "4px",
+                border: `1px solid ${colors.border}`,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.875rem",
+                  color: colors.textSecondary,
+                  marginBottom: "0.25rem",
+                }}
+              >
+                {language === "tr"
+                  ? "Maksimum Kapasite (Otomatik)"
+                  : "Max Capacity (Auto)"}
+              </div>
+              <div
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "600",
+                  color: colors.text,
+                }}
+              >
+                {calculatedMaxCapacity !== null
+                  ? calculatedMaxCapacity
+                  : language === "tr"
+                  ? "Hesaplanıyor..."
+                  : "Calculating..."}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: colors.textMuted,
+                  marginTop: "0.25rem",
+                }}
+              >
+                {language === "tr"
+                  ? "Seçili lokasyonun aktif koltuk düzeninden hesaplanır"
+                  : "Calculated from active seat layout of selected location"}
+              </div>
+            </div>
+          </div>
+        )}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1rem",
+            marginBottom: "1rem",
+          }}
+        >
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "600",
+                color: colors.text,
+              }}
+            >
+              {t("startTime")} *
+            </label>
+            <DatePicker
+              selected={
+                formData.startTime ? new Date(formData.startTime) : null
+              }
+              onChange={(date: Date | null) => {
+                setSelectedStartDate(date);
+                if (date) {
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(
+                    2,
+                    "0"
+                  );
+                  const day = String(date.getDate()).padStart(2, "0");
+                  const hours = String(date.getHours()).padStart(2, "0");
+                  const minutes = String(date.getMinutes()).padStart(
+                    2,
+                    "0"
+                  );
+                  setFormData({
+                    ...formData,
+                    startTime: `${year}-${month}-${day}T${hours}:${minutes}`,
+                  });
+                }
+              }}
+              onChangeRaw={(e) => {
+                if (!e) return;
+                // Track when user types or changes date
+                const input = e.target as HTMLInputElement;
+                if (input.value) {
+                  const date = new Date(input.value);
+                  if (!isNaN(date.getTime())) {
+                    setSelectedStartDate(date);
+                  }
+                }
+              }}
+              onSelect={(date: Date | null) => {
+                // Track when user selects a date from calendar
+                if (date) {
+                  setSelectedStartDate(date);
+                }
+              }}
+              showTimeSelect
+              timeIntervals={10}
+              dateFormat={
+                language === "tr"
+                  ? "dd/MM/yyyy HH:mm"
+                  : "MM/dd/yyyy h:mm aa"
+              }
+              locale={language === "tr" ? "tr" : "en"}
+              minDate={editingId ? undefined : new Date()}
+              {...startTimeProps}
+              required
+              wrapperClassName={`datepicker-wrapper datepicker-${theme}`}
+              calendarClassName={`datepicker-calendar-${theme}`}
+              customInput={
+                <input
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: `1px solid ${colors.inputBorder}`,
+                    borderRadius: "4px",
+                    fontSize: "1rem",
+                    backgroundColor: colors.inputBg,
+                    color: colors.text,
+                  }}
+                />
+              }
+            />
+          </div>
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "600",
+                color: colors.text,
+              }}
+            >
+              {t("endTime")} *
+            </label>
+            <DatePicker
+              selected={
+                formData.endTime ? new Date(formData.endTime) : null
+              }
+              onChange={(date: Date | null) => {
+                setSelectedEndDate(date);
+                if (date) {
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(
+                    2,
+                    "0"
+                  );
+                  const day = String(date.getDate()).padStart(2, "0");
+                  const hours = String(date.getHours()).padStart(2, "0");
+                  const minutes = String(date.getMinutes()).padStart(
+                    2,
+                    "0"
+                  );
+                  setFormData({
+                    ...formData,
+                    endTime: `${year}-${month}-${day}T${hours}:${minutes}`,
+                  });
+                }
+              }}
+              onChangeRaw={(e) => {
+                if (!e) return;
+                // Track when user types or changes date
+                const input = e.target as HTMLInputElement;
+                if (input.value) {
+                  const date = new Date(input.value);
+                  if (!isNaN(date.getTime())) {
+                    setSelectedEndDate(date);
+                  }
+                }
+              }}
+              onSelect={(date: Date | null) => {
+                // Track when user selects a date from calendar
+                if (date) {
+                  setSelectedEndDate(date);
+                }
+              }}
+              showTimeSelect
+              timeIntervals={10}
+              dateFormat={
+                language === "tr"
+                  ? "dd/MM/yyyy HH:mm"
+                  : "MM/dd/yyyy h:mm aa"
+              }
+              locale={language === "tr" ? "tr" : "en"}
+              minDate={
+                editingId
+                  ? undefined
+                  : formData.startTime
+                  ? new Date(formData.startTime)
+                  : new Date()
+              }
+              {...endTimeProps}
+              required
+              wrapperClassName={`datepicker-wrapper datepicker-${theme}`}
+              calendarClassName={`datepicker-calendar-${theme}`}
+              customInput={
+                <input
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: `1px solid ${colors.inputBorder}`,
+                    borderRadius: "4px",
+                    fontSize: "1rem",
+                    backgroundColor: colors.inputBg,
+                    color: colors.text,
+                  }}
+                />
+              }
+            />
+          </div>
+        </div>
+        <div style={{ marginBottom: "1rem" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "0.5rem",
+              fontWeight: "600",
+              color: colors.text,
+            }}
+          >
+            {t("instructor")} *
+          </label>
+          <select
+            required
+            value={formData.instructorId}
+            onChange={(e) =>
+              setFormData({ ...formData, instructorId: e.target.value })
+            }
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: `1px solid ${colors.inputBorder}`,
+              borderRadius: "4px",
+              fontSize: "1rem",
+              backgroundColor: colors.inputBg,
+              color: colors.text,
+            }}
+          >
+            <option value="">{t("selectInstructor")}</option>
+            {instructors && instructors.length > 0 ? (
+              instructors.map((instructor) => {
+                const displayName =
+                  instructor.user?.name ||
+                  instructor.user?.email ||
+                  instructor.name ||
+                  instructor.email ||
+                  instructor.id;
+                console.log("Rendering instructor option:", {
+                  id: instructor.id,
+                  displayName,
+                  hasUser: !!instructor.user,
+                  userData: instructor.user,
+                });
+                return (
+                  <option key={instructor.id} value={instructor.id}>
+                    {displayName}
+                  </option>
+                );
+              })
+            ) : (
+              <option value="" disabled>
+                {language === "tr"
+                  ? `Eğitmen bulunamadı (${
+                      instructors?.length || 0
+                    } yüklendi)`
+                  : `No instructors available (${
+                      instructors?.length || 0
+                    } loaded)`}
+              </option>
+            )}
+          </select>
+        </div>
+        {editingId && (
+          <div style={{ marginBottom: "1rem" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "600",
+                color: colors.text,
+              }}
+            >
+              {t("status")}
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value })
+              }
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                border: `1px solid ${colors.inputBorder}`,
+                borderRadius: "4px",
+                fontSize: "1rem",
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+              }}
+            >
+              <option value="SCHEDULED">{t("scheduled")}</option>
+              <option value="IN_PROGRESS">{t("inProgress")}</option>
+              <option value="COMPLETED">{t("completed")}</option>
+              <option value="CANCELLED">{t("cancelled")}</option>
+            </select>
+          </div>
+        )}
+        {!editingId && (
+          <div
+            style={{
+              marginBottom: "1rem",
+              padding: "1rem",
+              backgroundColor: colors.theadBg,
+              borderRadius: "4px",
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: enableRepeat ? "1rem" : "0",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={enableRepeat}
+                onChange={(e) => setEnableRepeat(e.target.checked)}
+                style={{
+                  width: "1.25rem",
+                  height: "1.25rem",
+                  cursor: "pointer",
+                }}
+              />
+              <span style={{ fontWeight: "600", color: colors.text }}>
+                {language === "tr"
+                  ? "Oturumları tekrarla"
+                  : "Repeat Sessions"}
+              </span>
+            </label>
+            {enableRepeat && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "1rem",
+                  marginTop: "1rem",
+                }}
+              >
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "0.5rem",
+                      fontWeight: "600",
+                      color: colors.text,
+                    }}
+                  >
+                    {language === "tr" ? "Tekrar Sayısı" : "Repeat Count"}
+                  </label>
+                  <input
+                    type="number"
+                    min="2"
+                    max="52"
+                    value={repeatCount}
+                    onChange={(e) =>
+                      setRepeatCount(
+                        Math.max(
+                          2,
+                          Math.min(52, parseInt(e.target.value) || 2)
+                        )
+                      )
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: `1px solid ${colors.inputBorder}`,
+                      borderRadius: "4px",
+                      fontSize: "1rem",
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "0.5rem",
+                      fontWeight: "600",
+                      color: colors.text,
+                    }}
+                  >
+                    {language === "tr"
+                      ? "Tekrar Aralığı"
+                      : "Repeat Interval"}
+                  </label>
+                  <select
+                    value={repeatInterval}
+                    onChange={(e) =>
+                      setRepeatInterval(
+                        e.target.value as "daily" | "weekly"
+                      )
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: `1px solid ${colors.inputBorder}`,
+                      borderRadius: "4px",
+                      fontSize: "1rem",
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                    }}
+                  >
+                    <option value="daily">
+                      {language === "tr" ? "Günlük" : "Daily"}
+                    </option>
+                    <option value="weekly">
+                      {language === "tr" ? "Haftalık" : "Weekly"}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={saving}
+          style={{
+            padding: "0.75rem 1.5rem",
+            backgroundColor: "#4caf50",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            fontSize: "1rem",
+            fontWeight: "bold",
+            cursor: saving ? "not-allowed" : "pointer",
+            opacity: saving ? 0.6 : 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+          }}
+        >
+          {saving && <Spinner size={16} color="#ffffff" />}
+          {saving
+            ? t("saving")
+            : editingId
+            ? t("save")
+            : enableRepeat
+            ? `${t("createSession")} (${repeatCount} ${
+                language === "tr" ? "oturum" : "sessions"
+              })`
+            : t("createSession")}
+        </button>
+      </form>
+    </div>
+  );
+
   return (
     <div
       style={{
@@ -899,576 +1473,7 @@ export default function SessionsPage() {
         </div>
       )}
 
-      {showForm && (
-        <div
-          style={{
-            backgroundColor: colors.cardBg,
-            padding: "1.5rem",
-            borderRadius: "8px",
-            marginBottom: "1.5rem",
-            border: `1px solid ${colors.border}`,
-          }}
-        >
-          <h3
-            style={{ marginTop: 0, marginBottom: "1rem", color: colors.text }}
-          >
-            {editingId ? t("editSession") : t("createNewSession")}
-          </h3>
-          <form onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "0.5rem",
-                    fontWeight: "600",
-                    color: colors.text,
-                  }}
-                >
-                  {t("class")} *
-                </label>
-                <select
-                  required
-                  value={formData.classId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, classId: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem",
-                    border: `1px solid ${colors.inputBorder}`,
-                    borderRadius: "4px",
-                    fontSize: "1rem",
-                    backgroundColor: colors.inputBg,
-                    color: colors.text,
-                  }}
-                >
-                  <option value="">{t("selectClass")}</option>
-                  {classes.map((cls) => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "0.5rem",
-                    fontWeight: "600",
-                    color: colors.text,
-                  }}
-                >
-                  {t("location")}
-                </label>
-                <select
-                  required
-                  value={formData.locationId || ""}
-                  onChange={(e) => {
-                    const newLocationId = e.target.value;
-                    setFormData({ ...formData, locationId: newLocationId });
-                    // Fetch max capacity when location changes
-                    fetchMaxCapacityForLocation(newLocationId);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem",
-                    border: `1px solid ${colors.inputBorder}`,
-                    borderRadius: "4px",
-                    fontSize: "1rem",
-                    backgroundColor: colors.inputBg,
-                    color: colors.text,
-                  }}
-                >
-                  <option value="">{t("selectLocation")}</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name} {loc.isDefault ? `(${t("default")})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {formData.locationId && (
-              <div style={{ marginBottom: "1rem" }}>
-                <div
-                  style={{
-                    padding: "0.75rem",
-                    backgroundColor: colors.theadBg,
-                    borderRadius: "4px",
-                    border: `1px solid ${colors.border}`,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "0.875rem",
-                      color: colors.textSecondary,
-                      marginBottom: "0.25rem",
-                    }}
-                  >
-                    {language === "tr"
-                      ? "Maksimum Kapasite (Otomatik)"
-                      : "Max Capacity (Auto)"}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "1.25rem",
-                      fontWeight: "600",
-                      color: colors.text,
-                    }}
-                  >
-                    {calculatedMaxCapacity !== null
-                      ? calculatedMaxCapacity
-                      : language === "tr"
-                      ? "Hesaplanıyor..."
-                      : "Calculating..."}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      color: colors.textMuted,
-                      marginTop: "0.25rem",
-                    }}
-                  >
-                    {language === "tr"
-                      ? "Seçili lokasyonun aktif koltuk düzeninden hesaplanır"
-                      : "Calculated from active seat layout of selected location"}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "0.5rem",
-                    fontWeight: "600",
-                    color: colors.text,
-                  }}
-                >
-                  {t("startTime")} *
-                </label>
-                <DatePicker
-                  selected={
-                    formData.startTime ? new Date(formData.startTime) : null
-                  }
-                  onChange={(date: Date | null) => {
-                    setSelectedStartDate(date);
-                    if (date) {
-                      const year = date.getFullYear();
-                      const month = String(date.getMonth() + 1).padStart(
-                        2,
-                        "0"
-                      );
-                      const day = String(date.getDate()).padStart(2, "0");
-                      const hours = String(date.getHours()).padStart(2, "0");
-                      const minutes = String(date.getMinutes()).padStart(
-                        2,
-                        "0"
-                      );
-                      setFormData({
-                        ...formData,
-                        startTime: `${year}-${month}-${day}T${hours}:${minutes}`,
-                      });
-                    }
-                  }}
-                  onChangeRaw={(e) => {
-                    if (!e) return;
-                    // Track when user types or changes date
-                    const input = e.target as HTMLInputElement;
-                    if (input.value) {
-                      const date = new Date(input.value);
-                      if (!isNaN(date.getTime())) {
-                        setSelectedStartDate(date);
-                      }
-                    }
-                  }}
-                  onSelect={(date: Date | null) => {
-                    // Track when user selects a date from calendar
-                    if (date) {
-                      setSelectedStartDate(date);
-                    }
-                  }}
-                  showTimeSelect
-                  timeIntervals={10}
-                  dateFormat={
-                    language === "tr"
-                      ? "dd/MM/yyyy HH:mm"
-                      : "MM/dd/yyyy h:mm aa"
-                  }
-                  locale={language === "tr" ? "tr" : "en"}
-                  minDate={editingId ? undefined : new Date()}
-                  {...startTimeProps}
-                  required
-                  wrapperClassName={`datepicker-wrapper datepicker-${theme}`}
-                  calendarClassName={`datepicker-calendar-${theme}`}
-                  customInput={
-                    <input
-                      style={{
-                        width: "100%",
-                        padding: "0.5rem",
-                        border: `1px solid ${colors.inputBorder}`,
-                        borderRadius: "4px",
-                        fontSize: "1rem",
-                        backgroundColor: colors.inputBg,
-                        color: colors.text,
-                      }}
-                    />
-                  }
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "0.5rem",
-                    fontWeight: "600",
-                    color: colors.text,
-                  }}
-                >
-                  {t("endTime")} *
-                </label>
-                <DatePicker
-                  selected={
-                    formData.endTime ? new Date(formData.endTime) : null
-                  }
-                  onChange={(date: Date | null) => {
-                    setSelectedEndDate(date);
-                    if (date) {
-                      const year = date.getFullYear();
-                      const month = String(date.getMonth() + 1).padStart(
-                        2,
-                        "0"
-                      );
-                      const day = String(date.getDate()).padStart(2, "0");
-                      const hours = String(date.getHours()).padStart(2, "0");
-                      const minutes = String(date.getMinutes()).padStart(
-                        2,
-                        "0"
-                      );
-                      setFormData({
-                        ...formData,
-                        endTime: `${year}-${month}-${day}T${hours}:${minutes}`,
-                      });
-                    }
-                  }}
-                  onChangeRaw={(e) => {
-                    if (!e) return;
-                    // Track when user types or changes date
-                    const input = e.target as HTMLInputElement;
-                    if (input.value) {
-                      const date = new Date(input.value);
-                      if (!isNaN(date.getTime())) {
-                        setSelectedEndDate(date);
-                      }
-                    }
-                  }}
-                  onSelect={(date: Date | null) => {
-                    // Track when user selects a date from calendar
-                    if (date) {
-                      setSelectedEndDate(date);
-                    }
-                  }}
-                  showTimeSelect
-                  timeIntervals={10}
-                  dateFormat={
-                    language === "tr"
-                      ? "dd/MM/yyyy HH:mm"
-                      : "MM/dd/yyyy h:mm aa"
-                  }
-                  locale={language === "tr" ? "tr" : "en"}
-                  minDate={
-                    editingId
-                      ? undefined
-                      : formData.startTime
-                      ? new Date(formData.startTime)
-                      : new Date()
-                  }
-                  {...endTimeProps}
-                  required
-                  wrapperClassName={`datepicker-wrapper datepicker-${theme}`}
-                  calendarClassName={`datepicker-calendar-${theme}`}
-                  customInput={
-                    <input
-                      style={{
-                        width: "100%",
-                        padding: "0.5rem",
-                        border: `1px solid ${colors.inputBorder}`,
-                        borderRadius: "4px",
-                        fontSize: "1rem",
-                        backgroundColor: colors.inputBg,
-                        color: colors.text,
-                      }}
-                    />
-                  }
-                />
-              </div>
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "0.5rem",
-                  fontWeight: "600",
-                  color: colors.text,
-                }}
-              >
-                {t("instructor")} *
-              </label>
-              <select
-                required
-                value={formData.instructorId}
-                onChange={(e) =>
-                  setFormData({ ...formData, instructorId: e.target.value })
-                }
-                style={{
-                  width: "100%",
-                  padding: "0.5rem",
-                  border: `1px solid ${colors.inputBorder}`,
-                  borderRadius: "4px",
-                  fontSize: "1rem",
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                }}
-              >
-                <option value="">{t("selectInstructor")}</option>
-                {instructors && instructors.length > 0 ? (
-                  instructors.map((instructor) => {
-                    const displayName =
-                      instructor.user?.name ||
-                      instructor.user?.email ||
-                      instructor.name ||
-                      instructor.email ||
-                      instructor.id;
-                    console.log("Rendering instructor option:", {
-                      id: instructor.id,
-                      displayName,
-                      hasUser: !!instructor.user,
-                      userData: instructor.user,
-                    });
-                    return (
-                      <option key={instructor.id} value={instructor.id}>
-                        {displayName}
-                      </option>
-                    );
-                  })
-                ) : (
-                  <option value="" disabled>
-                    {language === "tr"
-                      ? `Eğitmen bulunamadı (${
-                          instructors?.length || 0
-                        } yüklendi)`
-                      : `No instructors available (${
-                          instructors?.length || 0
-                        } loaded)`}
-                  </option>
-                )}
-              </select>
-            </div>
-            {editingId && (
-              <div style={{ marginBottom: "1rem" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "0.5rem",
-                    fontWeight: "600",
-                    color: colors.text,
-                  }}
-                >
-                  {t("status")}
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem",
-                    border: `1px solid ${colors.inputBorder}`,
-                    borderRadius: "4px",
-                    fontSize: "1rem",
-                    backgroundColor: colors.inputBg,
-                    color: colors.text,
-                  }}
-                >
-                  <option value="SCHEDULED">{t("scheduled")}</option>
-                  <option value="IN_PROGRESS">{t("inProgress")}</option>
-                  <option value="COMPLETED">{t("completed")}</option>
-                  <option value="CANCELLED">{t("cancelled")}</option>
-                </select>
-              </div>
-            )}
-            {!editingId && (
-              <div
-                style={{
-                  marginBottom: "1rem",
-                  padding: "1rem",
-                  backgroundColor: colors.theadBg,
-                  borderRadius: "4px",
-                  border: `1px solid ${colors.border}`,
-                }}
-              >
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    marginBottom: enableRepeat ? "1rem" : "0",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={enableRepeat}
-                    onChange={(e) => setEnableRepeat(e.target.checked)}
-                    style={{
-                      width: "1.25rem",
-                      height: "1.25rem",
-                      cursor: "pointer",
-                    }}
-                  />
-                  <span style={{ fontWeight: "600", color: colors.text }}>
-                    {language === "tr"
-                      ? "Oturumları tekrarla"
-                      : "Repeat Sessions"}
-                  </span>
-                </label>
-                {enableRepeat && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "1rem",
-                      marginTop: "1rem",
-                    }}
-                  >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {language === "tr" ? "Tekrar Sayısı" : "Repeat Count"}
-                      </label>
-                      <input
-                        type="number"
-                        min="2"
-                        max="52"
-                        value={repeatCount}
-                        onChange={(e) =>
-                          setRepeatCount(
-                            Math.max(
-                              2,
-                              Math.min(52, parseInt(e.target.value) || 2)
-                            )
-                          )
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.inputBorder}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.inputBg,
-                          color: colors.text,
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "0.5rem",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        {language === "tr"
-                          ? "Tekrar Aralığı"
-                          : "Repeat Interval"}
-                      </label>
-                      <select
-                        value={repeatInterval}
-                        onChange={(e) =>
-                          setRepeatInterval(
-                            e.target.value as "daily" | "weekly"
-                          )
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "0.5rem",
-                          border: `1px solid ${colors.inputBorder}`,
-                          borderRadius: "4px",
-                          fontSize: "1rem",
-                          backgroundColor: colors.inputBg,
-                          color: colors.text,
-                        }}
-                      >
-                        <option value="daily">
-                          {language === "tr" ? "Günlük" : "Daily"}
-                        </option>
-                        <option value="weekly">
-                          {language === "tr" ? "Haftalık" : "Weekly"}
-                        </option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                padding: "0.75rem 1.5rem",
-                backgroundColor: "#4caf50",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "1rem",
-                fontWeight: "bold",
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving ? 0.6 : 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-              }}
-            >
-              {saving && <Spinner size={16} color="#ffffff" />}
-              {saving
-                ? t("saving")
-                : editingId
-                ? t("save")
-                : enableRepeat
-                ? `${t("createSession")} (${repeatCount} ${
-                    language === "tr" ? "oturum" : "sessions"
-                  })`
-                : t("createSession")}
-            </button>
-          </form>
-        </div>
-      )}
+      {showForm && !editingId && sessionForm}
 
       {loading && sessions.length === 0 ? (
         <div
@@ -1616,8 +1621,16 @@ export default function SessionsPage() {
             </thead>
             <tbody>
               {sessions.map((session, index) => (
+                 <React.Fragment key={session.id}>
+                    {editingId === session.id && (
+                        <tr>
+                            <td colSpan={10} style={{ padding: 0 }}>
+                                {sessionForm}
+                            </td>
+                        </tr>
+                    )}
                 <tr
-                  key={session.id}
+
                   style={{
                     borderBottom: `1px solid ${colors.border}`,
                     backgroundColor:
@@ -1765,6 +1778,7 @@ export default function SessionsPage() {
                     </div>
                   </td>
                 </tr>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
